@@ -18,6 +18,7 @@ tf_ts_library(
         "//tensorboard/components/tf_dashboard_common",
         "//tensorboard/components/vz_chart_helpers",
         "//tensorboard/components/vz_line_chart2",
+        "//tensorboard/components/vz_line_chart2:line_chart",
         "@npm//@polymer/decorators",
         "@npm//@polymer/polymer",
         "@npm//@types/lodash",

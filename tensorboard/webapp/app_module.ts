@@ -35,6 +35,7 @@ import {RunsModule} from './runs/runs_module';
 import {SettingsModule} from './settings/settings_module';
 import {TensorBoardWrapperModule} from './tb_wrapper/tb_wrapper_module';
 import {OssPluginsModule} from './oss_plugins_module';
+import {LineChartDemoModule} from './widgets/line_chart_v2/line_chart_demo_module';
 
 import {RouteRegistryModule} from './app_routing/route_registry_module';
 import {routesFactory} from './routes';
@@ -66,6 +67,7 @@ import {routesFactory} from './routes';
     }),
     EffectsModule.forRoot([]),
     OssPluginsModule,
+    LineChartDemoModule,
   ],
   providers: [
     {

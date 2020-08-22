@@ -1,6 +1,7 @@
 # Description:
 # TensorBoard, a dashboard for investigating TensorFlow
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load("//tensorboard/defs:web.bzl", "tf_web_library")
 load("//tensorboard/defs:zipper.bzl", "tensorboard_zip_file")
 
@@ -335,6 +336,7 @@ tf_web_library(
         "//tensorboard/webapp:index.html",
         "//tensorboard/webapp:index.js",
         "//tensorboard/webapp:svg_bundle",
+        "//tensorboard/webapp/widgets/line_chart_v2:chart_worker.js",
     ],
     path = "/",
     deps = [

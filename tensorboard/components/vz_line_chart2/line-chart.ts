@@ -126,7 +126,7 @@ export class LineChart {
     colorScale: Plottable.Scales.Color,
     tooltip: any, // VzChartTooltip
     tooltipColumns: TooltipColumn[],
-    fillArea: FillArea,
+    fillArea?: FillArea,
     defaultXRange?: number[],
     defaultYRange?: number[],
     symbolFunction?: SymbolFn,
@@ -383,7 +383,7 @@ export class LineChart {
     this.resetXDomain();
     this.resetYDomain();
   }
-  private resetXDomain() {
+  resetXDomain() {
     let xDomain;
     if (this._defaultXRange != null) {
       // Use the range specified by the caller.
@@ -872,6 +872,15 @@ export class LineChart {
   public setTooltipSortingMethod(method: string) {
     this.tooltipSortingMethod = method;
   }
+  setDefaultXRange(xRange: any) {
+    this._defaultXRange = xRange;
+    this.xScale.domain(this._defaultXRange);
+  }
+  setDefaultYRange(yRange: any) {
+    this._defaultYRange = yRange;
+    this.yScale.domain(this._defaultYRange);
+  }
+
   public renderTo(targetSVG: d3.Selection<any, any, any, any>) {
     this.targetSVG = targetSVG;
     this.outer.renderTo(targetSVG);

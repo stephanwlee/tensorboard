@@ -82,6 +82,7 @@ ng_module(
         "//tensorboard/webapp/runs_legacy",
         "//tensorboard/webapp/settings",
         "//tensorboard/webapp/tb_wrapper",
+        "//tensorboard/webapp/widgets/line_chart_v2:line_chart_demo",
         "@npm//@angular/core",
         "@npm//@angular/platform-browser",
         "@npm//@ngrx/effects",

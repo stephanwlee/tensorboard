@@ -20,24 +20,41 @@ tf_ts_library(
 tf_ts_library(
     name = "vz_line_chart2",
     srcs = [
-        "line-chart.ts",
-        "line-chart-exporter.ts",
-        "linear-scale.ts",
-        "log-scale.ts",
         "panZoomDragLayer.html.ts",
-        "panZoomDragLayer.ts",
-        "tf-scale.ts",
         "vz-line-chart2.ts",
     ],
     strict_checks = False,
     deps = [
         ":dragZoomInteraction",
+        ":line_chart",
         "//tensorboard/components/polymer:legacy_element_mixin",
         "//tensorboard/components/polymer:plottable_style",
         "//tensorboard/components/polymer:register_style_dom_module",
         "//tensorboard/components/vz_chart_helpers",
         "@npm//@polymer/decorators",
         "@npm//@polymer/polymer",
+        "@npm//@types/d3",
+        "@npm//@types/lodash",
+        "@npm//d3",
+        "@npm//lodash",
+        "@npm//plottable",
+    ],
+)
+
+tf_ts_library(
+    name = "line_chart",
+    srcs = [
+        "line-chart.ts",
+        "line-chart-exporter.ts",
+        "linear-scale.ts",
+        "log-scale.ts",
+        "panZoomDragLayer.ts",
+        "tf-scale.ts",
+    ],
+    strict_checks = False,
+    deps = [
+        ":dragZoomInteraction",
+        "//tensorboard/components/vz_chart_helpers",
         "@npm//@types/d3",
         "@npm//@types/lodash",
         "@npm//d3",
