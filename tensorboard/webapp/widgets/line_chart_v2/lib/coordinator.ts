@@ -93,8 +93,8 @@ export class Coordinator {
   /**
    * Converts size in browser pixel to the native coordinate dimensions.
    */
-  getVerticalSize(paddingInPixel: number): number {
-    return paddingInPixel;
+  getVerticalSize(sizeInPixel: number): number {
+    return sizeInPixel;
   }
 
   /**
@@ -116,39 +116,20 @@ export class Coordinator {
 }
 
 export class THREECoordinator extends Coordinator {
-  private readonly CAMERA_BOUNDS: [number, number] = [0, 1000];
   private readonly camera = new THREE.OrthographicCamera(
-    this.CAMERA_BOUNDS[0],
-    this.CAMERA_BOUNDS[1],
-    this.CAMERA_BOUNDS[1],
-    this.CAMERA_BOUNDS[0],
+    0,
+    1000,
+    1000,
+    0,
     -100,
     100
   );
-
-  private readonly uiToCameraXScale = new LinearScale().range(
-    this.CAMERA_BOUNDS[0],
-    this.CAMERA_BOUNDS[1]
-  );
-  private readonly uiToCameraYScale = new LinearScale().range(
-    this.CAMERA_BOUNDS[0],
-    this.CAMERA_BOUNDS[1]
-  );
-
-  setDomContainerRect(rect: Rect) {
-    super.setDomContainerRect(rect);
-    this.xScale.range(rect.x, rect.x + rect.width);
-    this.yScale.range(rect.y + rect.height, rect.y);
-    this.uiToCameraXScale.domain(rect.x, rect.x + rect.width);
-    this.uiToCameraYScale.domain(rect.y + rect.height, rect.y);
-    this.adjustCamera();
-  }
 
   setViewportRect(rectInDataCoordinate: Rect) {
     // When adjusting view, we only need to modify the camera and not update the
     // internal coordinate system. We don't need to update the update
     // identifier.
-    this.currentViewportRect = rectInDataCoordinate;
+    super.setViewportRect(rectInDataCoordinate);
     this.adjustCamera();
   }
 
@@ -158,49 +139,13 @@ export class THREECoordinator extends Coordinator {
     this.yScale.range(domRect.y + domRect.height, domRect.y);
 
     const viewRect = this.getCurrentViewportRect();
-    this.camera.left = this.uiToCameraXScale.getValue(
-      this.xScale.getValue(viewRect.x)
-    );
-    this.camera.right = this.uiToCameraXScale.getValue(
-      this.xScale.getValue(viewRect.x + viewRect.width)
-    );
-    this.camera.top = this.uiToCameraYScale.getValue(
-      this.yScale.getValue(viewRect.y + viewRect.height)
-    );
-    this.camera.bottom = this.uiToCameraYScale.getValue(
-      this.yScale.getValue(viewRect.y)
-    );
-    console.log(
-      'camera update',
-      domRect,
-      viewRect,
-      this.camera.left,
-      this.camera.right,
-      this.camera.top,
-      this.camera.bottom
-    );
+
+    this.camera.left = this.xScale.getValue(viewRect.x);
+    this.camera.right = this.xScale.getValue(viewRect.x + viewRect.width);
+    this.camera.top = this.yScale.getValue(viewRect.y + viewRect.height);
+    this.camera.bottom = this.yScale.getValue(viewRect.y);
+
     this.camera.updateProjectionMatrix();
-  }
-
-  setXScale(scale: Scale) {
-    super.setXScale(scale);
-    this.xScale.range(this.CAMERA_BOUNDS[0], this.CAMERA_BOUNDS[1]);
-  }
-
-  setYScale(scale: Scale) {
-    super.setYScale(scale);
-    this.yScale.range(this.CAMERA_BOUNDS[0], this.CAMERA_BOUNDS[1]);
-  }
-
-  getViewCoordinate(
-    rectInUiCoordinate: Rect,
-    dataCoordinate: [XCoordinate, YCoordinate]
-  ): [XCoordinate, YCoordinate] {
-    const [x, y] = super.getViewCoordinate(rectInUiCoordinate, dataCoordinate);
-    return [
-      this.uiToCameraXScale.getValue(x),
-      this.uiToCameraYScale.getValue(y),
-    ];
   }
 
   getCamera() {
@@ -210,33 +155,25 @@ export class THREECoordinator extends Coordinator {
   /**
    * Converts size in browser pixel to the native coordinate dimensions.
    */
-  getVerticalSize(paddingInPixel: number): number {
-    const [domBottom, domTop] = this.uiToCameraYScale.getDomain();
-    return Math.abs(
-      ((this.camera.bottom - this.camera.top) / (domBottom - domTop)) *
-        paddingInPixel
-    );
+  getVerticalSize(sizeInPixel: number): number {
+    const nativeHeight = Math.abs(this.camera.top - this.camera.bottom);
+    const {height: domHeightInPixel} = this.domContainerRect;
+    return (nativeHeight / domHeightInPixel) * sizeInPixel;
   }
 
   /**
    * Converts size in browser pixel to the native coordinate dimensions.
    */
   getVerticalPaddingSize(paddingInPixel: number): number {
-    const [domBottom, domTop] = this.uiToCameraYScale.getDomain();
-    return (
-      ((this.camera.bottom - this.camera.top) / (domBottom - domTop)) *
-      paddingInPixel
-    );
+    return this.getVerticalSize(paddingInPixel);
   }
 
   /**
    * Converts size in browser pixel to the native coordinate dimensions.
    */
   getHorizontalPaddingSize(paddingInPixel: number): number {
-    const [domLeft, domRight] = this.uiToCameraXScale.getDomain();
-    return (
-      ((this.camera.right - this.camera.left) / (domRight - domLeft)) *
-      paddingInPixel
-    );
+    const nativeWidth = Math.abs(this.camera.left - this.camera.right);
+    const {width: domWidthInPixel} = this.domContainerRect;
+    return (nativeWidth / domWidthInPixel) * paddingInPixel;
   }
 }

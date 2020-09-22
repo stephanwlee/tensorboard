@@ -28,6 +28,8 @@ export class SvgRenderer implements Renderer {
 
   resetRect(rect: Rect) {}
 
+  drawRect(id: string, rect: Rect, color: string): void {}
+
   clearForTesting() {}
 
   renderGroup(groupName: string, renderBlock: () => void) {}
@@ -100,6 +102,8 @@ export class Canvas2dRenderer implements Renderer {
     this.context.fillStyle = '#fff';
     this.context.fillRect(rect.x, rect.y, rect.width, rect.height);
   }
+
+  drawRect(id: string, rect: Rect, color: string): void {}
 
   clearForTesting() {
     this.resetRect({x: 0, y: 0, width: 1000, height: 1000});
@@ -187,6 +191,49 @@ export class Canvas3dRenderer implements Renderer {
 
   resetRect(rect: Rect) {}
 
+  drawRect(id: string, rect: Rect, color: string): void {
+    if (!this.currentRenderGroup) return;
+    this.idsToRemove.delete(id);
+
+    const cache = this.currentRenderGroup.get(id);
+    let mesh: THREE.Mesh | null = null;
+
+    if (cache && cache.object instanceof THREE.Mesh) {
+      mesh = cache.object;
+    } else if (!cache) {
+      const geometry = new THREE.BoxBufferGeometry(rect.width, rect.height, 1);
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        side: THREE.FrontSide,
+      });
+      mesh = new THREE.Mesh(geometry, material);
+      this.currentRenderGroup.set(id, {data: null, object: mesh});
+      this.scene.add(mesh);
+    }
+
+    if (!mesh) {
+      return;
+    }
+
+    const boxGeometry = mesh.geometry as THREE.BoxBufferGeometry;
+    const material = mesh.material as THREE.MeshBasicMaterial;
+
+    const newColor = new THREE.Color(color);
+    if (!newColor.equals(material.color)) {
+      material.color = newColor;
+    }
+
+    if (
+      boxGeometry.parameters.width !== rect.width ||
+      boxGeometry.parameters.height !== rect.height
+    ) {
+      mesh.geometry = new THREE.BoxBufferGeometry(rect.width, rect.height, 1);
+    }
+
+    mesh.position.x = rect.x - rect.width / 2;
+    mesh.position.y = rect.y + rect.height / 2;
+  }
+
   /**
    * When trying to simulate initial render, we need to remove and re-create all
    * objects in the scene. Doing that in the re-render will cause large GC and
@@ -254,16 +301,11 @@ export class Canvas3dRenderer implements Renderer {
   }
 
   drawLine(id: string, paths: Paths, {visible, color, width}: LineSpec) {
-    if (this.currentRenderGroup === null) {
-      throw new RangeError(
-        'Invariant error: drawLine should be called inside renderGroup'
-      );
-    }
-
     if (!paths.length) {
       return;
     }
 
+    if (!this.currentRenderGroup) return;
     this.idsToRemove.delete(id);
 
     const cache = this.currentRenderGroup.get(id);
@@ -360,13 +402,9 @@ export class Canvas3dRenderer implements Renderer {
   }
 
   drawText(id: string, text: string, spec: TextSpec): void {
-    if (this.currentRenderGroup === null) {
-      throw new RangeError(
-        'Invariant error: drawLine should be called inside renderGroup'
-      );
-    }
-
+    if (!this.currentRenderGroup) return;
     this.idsToRemove.delete(id);
+
     const cache = this.currentRenderGroup.get(id);
 
     let geometry: THREE.TextGeometry | null = null;
@@ -382,8 +420,11 @@ export class Canvas3dRenderer implements Renderer {
     if (cache && cache.object instanceof THREE.Mesh) {
       mesh = cache.object;
       (mesh.material as THREE.MeshBasicMaterial).color.set(spec.color);
-      const prevText = cache?.data as string;
-      if (prevText !== text) {
+      const prevData = cache.data as {
+        text: string;
+        size: number;
+      };
+      if (prevData.text !== text || prevData.size !== spec.size) {
         geometry = new THREE.TextGeometry(text, textGeometryConfig);
         (mesh.geometry as THREE.Geometry).copy(geometry);
       }
@@ -395,10 +436,11 @@ export class Canvas3dRenderer implements Renderer {
       });
       mesh = new THREE.Mesh(geometry, material);
       mesh.rotateZ(0);
+      mesh.rotateX(Math.PI);
 
       this.scene.add(mesh);
       this.currentRenderGroup.set(id, {
-        data: text,
+        data: {text, size: spec.size},
         object: mesh,
       });
     }
@@ -427,13 +469,13 @@ export class Canvas3dRenderer implements Renderer {
         case TextAlign.START: {
           const textSize = new THREE.Vector3();
           mesh.geometry.boundingBox.getSize(textSize);
-          mesh.position.y = spec.position.y - textSize.y;
+          mesh.position.y = spec.position.y + textSize.y;
           break;
         }
         case TextAlign.CENTER: {
           const textSize = new THREE.Vector3();
           mesh.geometry.boundingBox.getSize(textSize);
-          mesh.position.y = spec.position.y - textSize.y / 2;
+          mesh.position.y = spec.position.y + textSize.y / 2;
           break;
         }
         case TextAlign.END: {

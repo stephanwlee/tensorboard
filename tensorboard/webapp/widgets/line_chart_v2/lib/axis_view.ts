@@ -49,14 +49,14 @@ export class YAxisView extends Drawable {
       viewRect.x,
       viewRect.y,
     ]);
-    const [, yMax] = this.coordinator.getViewCoordinate(layoutRect, [
+    const [xMax, yMax] = this.coordinator.getViewCoordinate(layoutRect, [
       viewRect.x + viewRect.width,
       viewRect.y + viewRect.height,
     ]);
 
     this.renderer.drawLine(
       'yaxis',
-      new Float32Array([xMin, yMin, xMin, yMax]),
+      new Float32Array([xMax, yMin, xMax, yMax]),
       {
         color: AXIS_COLOR,
         visible: true,
@@ -70,10 +70,10 @@ export class YAxisView extends Drawable {
         viewRect.x,
         tick,
       ]);
-      this.renderer.drawText(`label_${textSize}_${tick}`, axisFormatter(tick), {
+      this.renderer.drawText(`label_${tick}`, axisFormatter(tick), {
         size: textSize,
         color: AXIS_COLOR,
-        position: {x: xMin - this.coordinator.getHorizontalPaddingSize(5), y},
+        position: {x: xMax - this.coordinator.getHorizontalPaddingSize(5), y},
         horizontalAlign: TextAlign.END,
         verticalAlign: TextAlign.CENTER,
       });
@@ -100,16 +100,16 @@ export class XAxisView extends Drawable {
     const viewRect = this.coordinator.getCurrentViewportRect();
     const layoutRect = this.getLayoutRect();
 
-    const [x1, y] = this.coordinator.getViewCoordinate(layoutRect, [
+    const [x1, y1] = this.coordinator.getViewCoordinate(layoutRect, [
       viewRect.x + viewRect.width,
       viewRect.y + viewRect.height,
     ]);
-    const [x2] = this.coordinator.getViewCoordinate(layoutRect, [
+    const [x2, y2] = this.coordinator.getViewCoordinate(layoutRect, [
       viewRect.x,
       viewRect.y,
     ]);
 
-    this.renderer.drawLine('axis', new Float32Array([x1, y, x2, y]), {
+    this.renderer.drawLine('axis', new Float32Array([x1, y1, x2, y1]), {
       color: AXIS_COLOR,
       visible: true,
       width: 1,
@@ -123,10 +123,10 @@ export class XAxisView extends Drawable {
         viewRect.y,
       ]);
 
-      this.renderer.drawText(`label_${tick}_${textSize}`, axisFormatter(tick), {
+      this.renderer.drawText(`label_${tick}`, axisFormatter(tick), {
         size: textSize,
         color: AXIS_COLOR,
-        position: {x, y: y + this.coordinator.getVerticalPaddingSize(5)},
+        position: {x, y: y1 + this.coordinator.getVerticalPaddingSize(5)},
         horizontalAlign: TextAlign.CENTER,
         verticalAlign: TextAlign.START,
       });

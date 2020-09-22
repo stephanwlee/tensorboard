@@ -19,6 +19,7 @@ export interface Renderer {
   resetRect(rect: Rect): void;
   drawLine(id: string, paths: Paths, spec: LineSpec): void;
   drawText(id: string, text: string, spec: TextSpec): void;
+  drawRect(id: string, rect: Rect, color: string): void;
   render(): void;
   clearForTesting(): void;
   renderGroup(groupName: string, renderBlock: () => void): void;

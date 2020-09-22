@@ -299,7 +299,6 @@ export class LineChartInteractiveLayerComponent
       this.yScale.range(lineLayout.height, 0);
     }
 
-    console.log('viewExtent changed in interactive', this.viewExtent);
     if (changes['viewExtent']) {
       this.xScale.domain(this.viewExtent.x[0], this.viewExtent.x[1]);
       this.yScale.domain(this.viewExtent.y[0], this.viewExtent.y[1]);
