@@ -206,6 +206,7 @@ export class Canvas3dRenderer implements Renderer {
   renderGroup(groupName: string, renderBlock: () => void) {
     this.currentRenderGroup =
       this.groupToCacheIdToThreeObject.get(groupName) ?? new Map();
+    this.groupToCacheIdToThreeObject.set(groupName, this.currentRenderGroup);
     this.idsToRemove.clear();
 
     for (const cacheKey of this.currentRenderGroup.keys()) {

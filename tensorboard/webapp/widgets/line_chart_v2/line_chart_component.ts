@@ -126,7 +126,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   colorMap!: Map<string, string>;
 
   @Input()
-  useWorkerIfCanvas: boolean = true;
+  useWorkerIfCanvas: boolean = false;
 
   @Input()
   xScaleType: ScaleType = ScaleType.LINEAR;

@@ -28,4 +28,5 @@ export interface LineSpec {
   visible: boolean;
   color: string;
   width: number;
+  clipRect?: Rect;
 }

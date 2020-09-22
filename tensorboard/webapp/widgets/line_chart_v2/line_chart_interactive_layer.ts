@@ -227,10 +227,10 @@ export class LineChartInteractiveLayerComponent
               ),
             ],
             y: [
-              this.yScale.invert(this.zoomBoxInUiCoordinate.y),
               this.yScale.invert(
                 this.zoomBoxInUiCoordinate.y + this.zoomBoxInUiCoordinate.height
               ),
+              this.yScale.invert(this.zoomBoxInUiCoordinate.y),
             ],
           });
         }
@@ -252,10 +252,10 @@ export class LineChartInteractiveLayerComponent
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
-        console.log('mousemove', this.state);
         switch (this.state) {
           case InteractionState.NONE:
             this.updateTooltip(event);
+            this.changeDetector.markForCheck();
             break;
           case InteractionState.PANNING:
             this.updateTooltip(event);
@@ -299,6 +299,7 @@ export class LineChartInteractiveLayerComponent
       this.yScale.range(lineLayout.height, 0);
     }
 
+    console.log('viewExtent changed in interactive', this.viewExtent);
     if (changes['viewExtent']) {
       this.xScale.domain(this.viewExtent.x[0], this.viewExtent.x[1]);
       this.yScale.domain(this.viewExtent.y[0], this.viewExtent.y[1]);
@@ -319,7 +320,6 @@ export class LineChartInteractiveLayerComponent
         color: this.colorMap.get(name) || '#f00',
       };
     });
-    this.changeDetector.markForCheck();
   }
 
   /**

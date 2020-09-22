@@ -23,6 +23,9 @@ function axisFormatter(num: number): string {
   return String(num);
 }
 
+const AXIS_COLOR = '#555';
+const GRID_COLOR = '#ccc';
+
 export class YAxisView extends Drawable {
   constructor(config: DrawableConfig) {
     super(
@@ -42,34 +45,35 @@ export class YAxisView extends Drawable {
     const viewRect = this.coordinator.getCurrentViewportRect();
     const layoutRect = this.getLayoutRect();
 
-    const [x, xAxisY1] = this.coordinator.getViewCoordinate(layoutRect, [
-      viewRect.x + viewRect.width,
+    const [xMin, yMin] = this.coordinator.getViewCoordinate(layoutRect, [
+      viewRect.x,
       viewRect.y,
     ]);
-    const [, xAxisY2] = this.coordinator.getViewCoordinate(layoutRect, [
-      viewRect.x,
+    const [, yMax] = this.coordinator.getViewCoordinate(layoutRect, [
+      viewRect.x + viewRect.width,
       viewRect.y + viewRect.height,
     ]);
 
     this.renderer.drawLine(
       'yaxis',
-      new Float32Array([x, xAxisY1, x, xAxisY2]),
+      new Float32Array([xMin, yMin, xMin, yMax]),
       {
-        color: '#8f8',
+        color: AXIS_COLOR,
         visible: true,
         width: 1,
       }
     );
 
+    const textSize = this.coordinator.getVerticalSize(10);
     for (const tick of getTicks(viewRect).ys) {
       const [, y] = this.coordinator.getViewCoordinate(layoutRect, [
         viewRect.x,
         tick,
       ]);
-      this.renderer.drawText(String(tick), axisFormatter(tick), {
-        size: this.coordinator.getVerticalSize(10),
-        color: '#555',
-        position: {x: x - this.coordinator.getHorizontalPaddingSize(5), y},
+      this.renderer.drawText(`label_${textSize}_${tick}`, axisFormatter(tick), {
+        size: textSize,
+        color: AXIS_COLOR,
+        position: {x: xMin - this.coordinator.getHorizontalPaddingSize(5), y},
         horizontalAlign: TextAlign.END,
         verticalAlign: TextAlign.CENTER,
       });
@@ -106,10 +110,12 @@ export class XAxisView extends Drawable {
     ]);
 
     this.renderer.drawLine('axis', new Float32Array([x1, y, x2, y]), {
-      color: '#8f8',
+      color: AXIS_COLOR,
       visible: true,
       width: 1,
     });
+
+    const textSize = this.coordinator.getVerticalSize(10);
 
     for (const tick of getTicks(viewRect).xs) {
       const [x] = this.coordinator.getViewCoordinate(layoutRect, [
@@ -117,9 +123,9 @@ export class XAxisView extends Drawable {
         viewRect.y,
       ]);
 
-      this.renderer.drawText(String(tick), axisFormatter(tick), {
-        size: this.coordinator.getVerticalSize(10),
-        color: '#555',
+      this.renderer.drawText(`label_${tick}_${textSize}`, axisFormatter(tick), {
+        size: textSize,
+        color: AXIS_COLOR,
         position: {x, y: y + this.coordinator.getVerticalPaddingSize(5)},
         horizontalAlign: TextAlign.CENTER,
         verticalAlign: TextAlign.START,
@@ -143,34 +149,32 @@ export class GridView extends Drawable {
     ]);
 
     const {xs, ys} = getTicks(viewRect);
+
     for (const xTick of xs) {
       const [x] = this.coordinator.getViewCoordinate(layoutRect, [xTick, 0]);
       this.renderer.drawLine(
         `grid_vert_${x}`,
         new Float32Array([x, yMin, x, yMax]),
         {
-          color: '#aaa',
+          color: GRID_COLOR,
           visible: true,
           width: 1,
         }
       );
+    }
 
-      for (const yTick of ys) {
-        const [, y] = this.coordinator.getViewCoordinate(layoutRect, [
-          0,
-          yTick,
-        ]);
+    for (const yTick of ys) {
+      const [, y] = this.coordinator.getViewCoordinate(layoutRect, [0, yTick]);
 
-        this.renderer.drawLine(
-          `grid_horz_${y}`,
-          new Float32Array([xMin, y, xMax, y]),
-          {
-            color: '#aaa',
-            visible: true,
-            width: 1,
-          }
-        );
-      }
+      this.renderer.drawLine(
+        `grid_horz_${y}`,
+        new Float32Array([xMin, y, xMax, y]),
+        {
+          color: GRID_COLOR,
+          visible: true,
+          width: 1,
+        }
+      );
     }
 
     // Accentuate zeros with darker gray.
@@ -182,16 +186,17 @@ export class GridView extends Drawable {
       `grid_horz_${yZero}`,
       new Float32Array([xMin, yZero, xMax, yZero]),
       {
-        color: '#333',
+        color: AXIS_COLOR,
         visible: true,
         width: 1,
       }
     );
+
     this.renderer.drawLine(
       `grid_vert_${xZero}`,
       new Float32Array([xZero, yMin, xZero, yMax]),
       {
-        color: '#333',
+        color: AXIS_COLOR,
         visible: true,
         width: 1,
       }

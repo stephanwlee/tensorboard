@@ -170,6 +170,15 @@ export class THREECoordinator extends Coordinator {
     this.camera.bottom = this.uiToCameraYScale.getValue(
       this.yScale.getValue(viewRect.y)
     );
+    console.log(
+      'camera update',
+      domRect,
+      viewRect,
+      this.camera.left,
+      this.camera.right,
+      this.camera.top,
+      this.camera.bottom
+    );
     this.camera.updateProjectionMatrix();
   }
 
@@ -189,8 +198,8 @@ export class THREECoordinator extends Coordinator {
   ): [XCoordinate, YCoordinate] {
     const [x, y] = super.getViewCoordinate(rectInUiCoordinate, dataCoordinate);
     return [
-      Math.round(this.uiToCameraXScale.getValue(x)),
-      Math.round(this.uiToCameraYScale.getValue(y)),
+      this.uiToCameraXScale.getValue(x),
+      this.uiToCameraYScale.getValue(y),
     ];
   }
 
