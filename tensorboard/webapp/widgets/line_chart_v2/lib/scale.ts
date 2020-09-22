@@ -1,3 +1,5 @@
+import {scaleLinear} from 'd3-scale';
+
 export interface Scale {
   domain(min: number, max: number): void;
 
@@ -10,6 +12,8 @@ export interface Scale {
   getValue(x: number): number;
 
   invert(x: number): number;
+
+  niceDomain(min: number, max: number): [number, number];
 }
 
 export class LinearScale implements Scale {
@@ -51,5 +55,15 @@ export class LinearScale implements Scale {
 
   invert(x: number): number {
     return (this.inSpread / this.outSpread) * (x - this.outMin) + this.inMin;
+  }
+
+  niceDomain(min: number, max: number): [number, number] {
+    const scale = scaleLinear();
+    const padding = (max - min + Number.EPSILON) * 0.05;
+    const [niceMin, niceMax] = scale
+      .domain([min - padding, max + padding])
+      .nice()
+      .domain();
+    return [niceMin, niceMax];
   }
 }

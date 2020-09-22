@@ -22,7 +22,7 @@ export interface DataInternalSeries {
   paths: Paths;
 }
 
-interface Extent {
+export interface Extent {
   x: [number, number];
   y: [number, number];
 }

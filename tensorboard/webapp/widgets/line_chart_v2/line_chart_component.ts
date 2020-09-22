@@ -24,6 +24,7 @@ import {
 } from './lib/types';
 import {LineChart} from './lib/line_chart';
 import {OffscreenLineChart} from './offscreen_line_chart';
+import {LinearScale, Scale} from './lib/scale';
 
 let instId = 0;
 
@@ -45,6 +46,10 @@ function calculateSeriesExtent(data: DataSeries[]): DataExtent {
   return {x: [xMin, xMax], y: [yMin, yMax]};
 }
 
+export enum ScaleType {
+  LINEAR,
+}
+
 interface ResizeObserverEntry {
   contentRect: DOMRectReadOnly;
 }
@@ -60,6 +65,10 @@ interface ResizeObserverEntry {
       [colorMap]="colorMap"
       [chartLayout]="chartLayout"
       [viewExtent]="viewExtent"
+      [xScale]="xScale"
+      [yScale]="yScale"
+      (onViewExtentChange)="onViewExtentChanged($event)"
+      (onViewExtentReset)="onViewExtentReset()"
     ></line-chart-interactive-layer>
   `,
   styles: [
@@ -108,7 +117,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   data!: DataSeries[];
 
   @Input()
-  viewExtent?: ViewExtent;
+  defaultViewExtent?: ViewExtent;
 
   @Input()
   visibleSeries!: Set<string>;
@@ -119,15 +128,29 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   @Input()
   useWorkerIfCanvas: boolean = true;
 
+  @Input()
+  xScaleType: ScaleType = ScaleType.LINEAR;
+
+  @Input()
+  yScaleType: ScaleType = ScaleType.LINEAR;
+
   readonly id = instId++;
 
   chartLayout: ChartExportedLayouts | null = null;
 
+  xScale: Scale = new LinearScale();
+  yScale: Scale = new LinearScale();
+  viewExtent: ViewExtent = {
+    x: [0, 1],
+    y: [0, 1],
+  };
+
   private lineChart?: ILineChart;
   private dataExtent?: DataExtent;
   private isDataUpdated = false;
-  private isExtentUpdated = false;
   private isMetadataUpdated = false;
+  // Must set the default view extent since it is an optional input.
+  private isViewExtentUpdated = true;
 
   private readonly resizeObserver: any;
 
@@ -162,6 +185,21 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges) {
+    if (changes['xScaleType']) {
+      switch (this.xScaleType) {
+        case ScaleType.LINEAR:
+          this.xScale = new LinearScale();
+          break;
+      }
+    }
+    if (changes['yScaleType']) {
+      switch (this.yScaleType) {
+        case ScaleType.LINEAR:
+          this.yScale = new LinearScale();
+          break;
+      }
+    }
+
     if (!this.lineChart) {
       let params: LineChartOption | null = null;
       switch (this.chartType) {
@@ -208,23 +246,13 @@ export class LineChartComponent implements OnChanges, OnDestroy {
 
     if (changes['data']) {
       this.isDataUpdated = true;
+      if (!this.viewExtent) {
+        this.isViewExtentUpdated = true;
+      }
     }
 
-    if (changes['viewExtent']) {
-      const prev = changes['viewExtent'].previousValue as ViewExtent;
-      const next = changes['viewExtent'].currentValue as ViewExtent;
-      if (prev === next) {
-        this.isExtentUpdated = false;
-      } else if (!next) {
-        this.isExtentUpdated = true;
-      } else {
-        this.isExtentUpdated =
-          !Boolean(prev) ||
-          prev.x[0] !== next.x[0] ||
-          prev.x[1] !== next.x[1] ||
-          prev.y[0] !== next.y[0] ||
-          prev.y[1] !== next.y[1];
-      }
+    if (changes['defaultViewExtent']) {
+      this.isViewExtentUpdated = true;
     }
 
     if (changes['visibleSeries'] || changes['colorMap']) {
@@ -243,11 +271,12 @@ export class LineChartComponent implements OnChanges, OnDestroy {
       this.isDataUpdated = false;
       this.dataExtent = calculateSeriesExtent(this.data);
       this.lineChart.updateData(this.data, this.dataExtent);
+      this.viewExtent = this.getDefaultViewExtent() || this.viewExtent;
     }
 
-    if (this.isExtentUpdated) {
-      this.isExtentUpdated = false;
-      const extent = this.viewExtent || this.dataExtent;
+    if (this.isViewExtentUpdated) {
+      this.isViewExtentUpdated = false;
+      const extent = this.viewExtent || this.getDefaultViewExtent();
       if (extent) {
         this.lineChart.updateViewbox(extent);
       }
@@ -265,5 +294,35 @@ export class LineChartComponent implements OnChanges, OnDestroy {
       });
       this.lineChart.updateMetadata(metadata);
     }
+  }
+
+  onViewExtentChanged(viewExtent: ViewExtent) {
+    this.isViewExtentUpdated = true;
+    this.viewExtent = viewExtent;
+    this.updateProp();
+  }
+
+  onViewExtentReset() {
+    this.isViewExtentUpdated = true;
+    const nextExtent = this.getDefaultViewExtent();
+    if (nextExtent) {
+      this.viewExtent = nextExtent;
+    }
+    this.updateProp();
+  }
+
+  private getDefaultViewExtent(): ViewExtent | null {
+    if (this.defaultViewExtent) {
+      return this.defaultViewExtent;
+    }
+
+    if (!this.dataExtent) {
+      return null;
+    }
+
+    return {
+      x: this.xScale.niceDomain(...this.dataExtent.x),
+      y: this.yScale.niceDomain(...this.dataExtent.y),
+    };
   }
 }

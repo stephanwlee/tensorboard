@@ -39,7 +39,6 @@ const COLORS = [
   selector: 'line-chart-demo',
   template: `
     <main-thread-line-chart
-      [viewExtent]="extent"
       [data]="data"
       [visibleSeries]="visibleSeries"
       [colorMap]="colorMap"
@@ -74,9 +73,4 @@ export class LineChartDemoComponent {
       return [name, COLORS[index % COLORS.length]];
     })
   );
-
-  extent: DataExtent = {
-    x: [0, NUM_POINTS],
-    y: [-1, 1],
-  };
 }

@@ -44,4 +44,8 @@ tf_ts_library(
     srcs = [
         "scale.ts",
     ],
+    deps = [
+        "@npm//@types/d3-scale",
+        "@npm//d3-scale",
+    ],
 )

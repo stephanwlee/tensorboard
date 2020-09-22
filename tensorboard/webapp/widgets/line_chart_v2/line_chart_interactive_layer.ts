@@ -9,17 +9,19 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
 import {Subject, fromEvent} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
-import {LinearScale} from './lib/scale';
-import {ChartExportedLayouts, DataExtent, DataSeries} from './lib/types';
+import {Scale} from './lib/scale';
+import {ChartExportedLayouts, DataSeries, Rect, ViewExtent} from './lib/types';
 
 export interface TooltipDatum {
   name: string;
@@ -27,46 +29,15 @@ export interface TooltipDatum {
   point: {x: number; y: number};
 }
 
+enum InteractionState {
+  NONE,
+  ZOOMING,
+  PANNING,
+}
+
 @Component({
   selector: 'line-chart-interactive-layer',
-  template: `
-    <svg #dots class="dots" [style]="getDotsBoxStyles()">
-      <circle
-        *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
-        [attr.cx]="lineContentXScale.getValue(datum.point.x)"
-        [attr.cy]="lineContentYScale.getValue(datum.point.y)"
-        [attr.fill]="datum.color"
-        r="4"
-      ></circle>
-    </svg>
-    <div
-      class="tooltip-origin"
-      cdkOverlayOrigin
-      #tooltipOrigin="cdkOverlayOrigin"
-    ></div>
-    <ng-template
-      cdkConnectedOverlay
-      [cdkConnectedOverlayOrigin]="tooltipOrigin"
-      [cdkConnectedOverlayOffsetX]="chartLayout?.lines.x"
-      [cdkConnectedOverlayWidth]="chartLayout?.lines.width"
-      [cdkConnectedOverlayOpen]="tooltipDislayAttached"
-      [cdkConnectedOverlayPositions]="tooltipPositions"
-      (detach)="onTooltipDisplayDetached()"
-    >
-      <div class="tooltip-container">
-        <div
-          *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
-          class="tooltip-row"
-        >
-          <span class="circle" [style.backgroundColor]="datum.color"></span>
-          <span>{{ datum.name }}</span
-          >: <span>{{ datum.point.x }}</span
-          >,
-          <span>{{ datum.point.y }}</span>
-        </div>
-      </div>
-    </ng-template>
-  `,
+  templateUrl: './line_chart_interactive_layer.ng.html',
   styles: [
     `
       :host {
@@ -100,6 +71,7 @@ export interface TooltipDatum {
         padding: 5px;
         width: 100%;
       }
+
       .tooltip-row {
         display: flex;
         align-items: center;
@@ -107,6 +79,12 @@ export interface TooltipDatum {
 
       .tooltip-row > span {
         margin: 0 5px;
+      }
+
+      .zoom-box {
+        fill-opacity: 0.03;
+        fill: #000;
+        stroke: #ccc;
       }
     `,
   ],
@@ -140,9 +118,24 @@ export class LineChartInteractiveLayerComponent
   chartLayout!: ChartExportedLayouts | null;
 
   @Input()
-  viewExtent!: DataExtent;
+  viewExtent!: ViewExtent;
 
-  private readonly ngUnsubscribe = new Subject();
+  @Input()
+  xScale!: Scale;
+
+  @Input()
+  yScale!: Scale;
+
+  @Output()
+  onViewExtentChange = new EventEmitter<ViewExtent>();
+
+  @Output()
+  onViewExtentReset = new EventEmitter<void>();
+
+  readonly InteractionState = InteractionState;
+
+  state: InteractionState = InteractionState.NONE;
+  zoomBoxInUiCoordinate: Rect = {x: 0, width: 0, height: 0, y: 0};
 
   readonly tooltipPositions: ConnectedPosition[] = [
     {
@@ -154,11 +147,12 @@ export class LineChartInteractiveLayerComponent
     },
   ];
 
-  lineContentXScale = new LinearScale();
-  lineContentYScale = new LinearScale();
   cursorXLocation: number | null = null;
   cursoredData: TooltipDatum[] = [];
   tooltipDislayAttached: boolean = false;
+
+  private interactionOrigin: {x: number; y: number} | null = null;
+  private readonly ngUnsubscribe = new Subject();
 
   trackBySeriesName(datum: TooltipDatum) {
     return datum.name;
@@ -183,11 +177,104 @@ export class LineChartInteractiveLayerComponent
   ) {}
 
   ngAfterViewInit() {
+    fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'dblclick', {
+      passive: true,
+    })
+      .pipe(takeUntil(this.ngUnsubscribe))
+      .subscribe(() => {
+        this.onViewExtentReset.emit();
+        this.state = InteractionState.NONE;
+        this.changeDetector.markForCheck();
+      });
+
+    fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mousedown', {
+      passive: true,
+    })
+      .pipe(takeUntil(this.ngUnsubscribe))
+      .subscribe((event) => {
+        this.state = event.shiftKey
+          ? InteractionState.PANNING
+          : InteractionState.ZOOMING;
+        this.interactionOrigin = {x: event.offsetX, y: event.offsetY};
+
+        if (this.state === InteractionState.ZOOMING) {
+          this.zoomBoxInUiCoordinate = {
+            x: event.offsetX,
+            width: 0,
+            y: event.offsetY,
+            height: 0,
+          };
+        }
+
+        this.changeDetector.markForCheck();
+      });
+
+    fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mouseup', {
+      passive: true,
+    })
+      .pipe(takeUntil(this.ngUnsubscribe))
+      .subscribe((event) => {
+        if (
+          this.state === InteractionState.ZOOMING &&
+          this.zoomBoxInUiCoordinate.width > 5 &&
+          this.zoomBoxInUiCoordinate.height > 5
+        ) {
+          this.onViewExtentChange.emit({
+            x: [
+              this.xScale.invert(this.zoomBoxInUiCoordinate.x),
+              this.xScale.invert(
+                this.zoomBoxInUiCoordinate.x + this.zoomBoxInUiCoordinate.width
+              ),
+            ],
+            y: [
+              this.yScale.invert(this.zoomBoxInUiCoordinate.y),
+              this.yScale.invert(
+                this.zoomBoxInUiCoordinate.y + this.zoomBoxInUiCoordinate.height
+              ),
+            ],
+          });
+        }
+        this.state = InteractionState.NONE;
+        this.changeDetector.markForCheck();
+      });
+
+    fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mouseleave', {
+      passive: true,
+    })
+      .pipe(takeUntil(this.ngUnsubscribe))
+      .subscribe((event) => {
+        this.state = InteractionState.NONE;
+        this.changeDetector.markForCheck();
+      });
+
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mousemove', {
       passive: true,
     })
       .pipe(takeUntil(this.ngUnsubscribe))
-      .subscribe((event) => this.updateTooltip(event));
+      .subscribe((event) => {
+        console.log('mousemove', this.state);
+        switch (this.state) {
+          case InteractionState.NONE:
+            this.updateTooltip(event);
+            break;
+          case InteractionState.PANNING:
+            this.updateTooltip(event);
+            break;
+          case InteractionState.ZOOMING:
+            if (this.interactionOrigin) {
+              const xs = [this.interactionOrigin.x, event.offsetX];
+              const ys = [this.interactionOrigin.y, event.offsetY];
+              this.zoomBoxInUiCoordinate = {
+                x: Math.min(...xs),
+                width: Math.max(...xs) - Math.min(...xs),
+                y: Math.min(...ys),
+                height: Math.max(...ys) - Math.min(...ys),
+              };
+            }
+            this.changeDetector.markForCheck();
+            break;
+        }
+      });
   }
 
   ngOnDestroy() {
@@ -196,7 +283,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   private updateTooltip(event: MouseEvent) {
-    this.cursorXLocation = this.lineContentXScale.invert(event.offsetX);
+    this.cursorXLocation = this.xScale.invert(event.offsetX);
     this.updateCursoredData();
     this.tooltipDislayAttached = true;
   }
@@ -208,13 +295,13 @@ export class LineChartInteractiveLayerComponent
   ngOnChanges(changes: SimpleChanges) {
     if (changes['chartLayout'] && this.chartLayout) {
       const lineLayout = this.chartLayout.lines;
-      this.lineContentXScale.range(0, lineLayout.width);
-      this.lineContentYScale.range(lineLayout.height, 0);
+      this.xScale.range(0, lineLayout.width);
+      this.yScale.range(lineLayout.height, 0);
     }
 
     if (changes['viewExtent']) {
-      this.lineContentXScale.domain(this.viewExtent.x[0], this.viewExtent.x[1]);
-      this.lineContentYScale.domain(this.viewExtent.y[0], this.viewExtent.y[1]);
+      this.xScale.domain(this.viewExtent.x[0], this.viewExtent.x[1]);
+      this.yScale.domain(this.viewExtent.y[0], this.viewExtent.y[1]);
     }
 
     this.updateCursoredData();

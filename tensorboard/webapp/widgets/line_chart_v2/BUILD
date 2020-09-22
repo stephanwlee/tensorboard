@@ -33,6 +33,9 @@ ng_module(
         "offscreen_line_chart.ts",
         "worker.ts",
     ],
+    assets = [
+      "line_chart_interactive_layer.ng.html",
+    ],
     deps = [
         ":offscreen_chart_types",
         "//tensorboard/webapp/angular:expect_angular_cdk_overlay",

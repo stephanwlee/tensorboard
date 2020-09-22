@@ -1,0 +1,44 @@
+<svg #dots class="dots" [style]="getDotsBoxStyles()">
+  <ng-container *ngIf="state === InteractionState.NONE">
+    <circle
+      *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
+      [attr.cx]="xScale.getValue(datum.point.x)"
+      [attr.cy]="yScale.getValue(datum.point.y)"
+      [attr.fill]="datum.color"
+      r="4"
+    ></circle>
+  </ng-container>
+  <rect
+    *ngIf="state === InteractionState.ZOOMING"
+    class="zoom-box"
+    [attr.x]="zoomBoxInUiCoordinate.x"
+    [attr.width]="zoomBoxInUiCoordinate.width"
+    [attr.y]="zoomBoxInUiCoordinate.y"
+    [attr.height]="zoomBoxInUiCoordinate.height"
+  ></rect>
+</svg>
+<div
+  class="tooltip-origin"
+  cdkOverlayOrigin
+  #tooltipOrigin="cdkOverlayOrigin"
+></div>
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="tooltipOrigin"
+  [cdkConnectedOverlayOffsetX]="chartLayout?.lines.x"
+  [cdkConnectedOverlayWidth]="chartLayout?.lines.width"
+  [cdkConnectedOverlayOpen]="tooltipDislayAttached"
+  [cdkConnectedOverlayPositions]="tooltipPositions"
+  (detach)="onTooltipDisplayDetached()"
+>
+  <div class="tooltip-container">
+    <div
+      *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
+      class="tooltip-row"
+    >
+      <span class="circle" [style.backgroundColor]="datum.color"></span>
+      <span>{{ datum.name }}</span>: <span>{{ datum.point.x }}</span>,
+      <span>{{ datum.point.y }}</span>
+    </div>
+  </div>
+</ng-template>
