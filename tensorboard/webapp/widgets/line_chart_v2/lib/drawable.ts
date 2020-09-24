@@ -1,10 +1,10 @@
 import {ColorProvider} from './color_provider';
 import {Coordinator} from './coordinator';
-import {LayoutConfig, LayoutRect} from './layout';
+import {LayoutOption, LayoutRect} from './layout';
 import {Renderer} from './renderer_types';
 import {DataInternalSeries, DataSeries, VisibilityMap} from './types';
 
-export interface DrawableConfig extends LayoutConfig {
+export interface DrawableConfig extends LayoutOption {
   colorProvider: ColorProvider;
   renderer: Renderer;
   visibilityMap: VisibilityMap;

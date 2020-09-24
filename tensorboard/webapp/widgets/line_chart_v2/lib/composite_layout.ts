@@ -1,10 +1,10 @@
-import {LayoutRect, LayoutStrategy, LayoutConfig} from './layout';
+import {LayoutRect, LayoutStrategy, LayoutOption} from './layout';
 import {Rect} from './types';
 
 export class CompositeLayout extends LayoutRect {
   private readonly superposedLayouts: LayoutRect[];
 
-  constructor(config: LayoutConfig, contentColumns: LayoutRect[]) {
+  constructor(config: LayoutOption, contentColumns: LayoutRect[]) {
     let heightLayoutStrategy: LayoutStrategy = LayoutStrategy.MATCH_PARENT;
     let widthLayoutStrategy: LayoutStrategy = LayoutStrategy.MATCH_PARENT;
     for (const column of contentColumns) {

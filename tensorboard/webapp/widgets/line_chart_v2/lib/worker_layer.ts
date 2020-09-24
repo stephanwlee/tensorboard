@@ -1,32 +1,31 @@
 import {
   DataSeries,
-  LineChartCallbacks,
+  LayerCallbacks,
   DataSeriesMetadataMap,
-  ILineChart,
-  LineChartOption,
+  LayerOption,
   Rect,
   DataExtent,
   ViewExtent,
-} from './lib/types';
+  LayoutChildren,
+} from './types';
 import {getWorker} from './worker';
 import {
-  ChartType,
+  RendererType,
   GuestToMainMessage,
   GuestToMainType,
   MainToGuestEvent,
   MainToGuestMessage,
-} from './offscreen_chart_types';
+} from './worker_layer_types';
+import {ILayer} from './layer_types';
 
-export class OffscreenLineChart implements ILineChart {
+export class WorkerLayer implements ILayer {
   private readonly toWorkerChannel: any;
+  private readonly callbacks: LayerCallbacks;
 
-  constructor(
-    id: number,
-    rect: Rect,
-    option: LineChartOption,
-    private readonly callbacks: LineChartCallbacks
-  ) {
-    if (option.type === ChartType.SVG) {
+  constructor(id: number, option: LayerOption, layouts: LayoutChildren) {
+    this.callbacks = option.callbacks;
+
+    if (option.type === RendererType.SVG) {
       throw new RangeError('Cannot use SVG for the offscreen line chart.');
     }
 
@@ -45,7 +44,7 @@ export class OffscreenLineChart implements ILineChart {
         workerId: id,
         canvas,
         devicePixelRatio: window.devicePixelRatio,
-        rect,
+        rect: option.domRect,
         chartType: option.type,
       },
       [canvas, channel.port2]

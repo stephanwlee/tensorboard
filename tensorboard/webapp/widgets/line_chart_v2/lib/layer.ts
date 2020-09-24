@@ -1,6 +1,6 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 
-import {GridView, XAxisView, YAxisView} from './axis_view';
+import {XAxisView, YAxisView} from './axis_view';
 import {ColorProvider} from './color_provider';
 import {Canvas2dRenderer, Canvas3dRenderer, SvgRenderer} from './renderer';
 import {Renderer} from './renderer_types';
@@ -11,38 +11,40 @@ import {
   Rect,
   DataExtent,
   VisibilityMap,
-  ChartType,
-  LineChartOption,
-  ILineChart,
-  LineChartCallbacks,
+  RendererType,
+  LayerOption,
+  LayerCallbacks,
+  LayoutChildren,
 } from './types';
-import {CompositeLayout} from './composite_layout';
+import {ILayer} from './layer_types';
 import {THREECoordinator, Coordinator} from './coordinator';
-import {FlexLayout} from './flex_layout';
 import {SeriesLineView} from './series_line_view';
+import {createRootLayout} from './layout_util';
 
-export class LineChart implements ILineChart {
+export class Layer implements ILayer {
   private readonly renderer: Renderer;
   private readonly root: RootLayout;
   private readonly coordinator: Coordinator;
   private readonly colorProivder = new ColorProvider();
   private readonly visibilityMap: VisibilityMap = new Map();
+  private readonly callbacks: LayerCallbacks;
 
   controls?: OrbitControls;
 
   constructor(
     private readonly id: number,
-    rect: Rect,
-    option: LineChartOption,
-    private readonly callbacks: LineChartCallbacks
+    option: LayerOption,
+    layouts: LayoutChildren
   ) {
+    this.callbacks = option.callbacks;
+
     switch (option.type) {
-      case ChartType.SVG: {
+      case RendererType.SVG: {
         this.coordinator = new Coordinator();
         this.renderer = new SvgRenderer(option.container);
         break;
       }
-      case ChartType.CANVAS: {
+      case RendererType.CANVAS: {
         this.coordinator = new Coordinator();
         this.renderer = new Canvas2dRenderer(
           option.container,
@@ -50,7 +52,7 @@ export class LineChart implements ILineChart {
         );
         break;
       }
-      case ChartType.WEBGL: {
+      case RendererType.WEBGL: {
         const coordinator = new THREECoordinator();
         this.coordinator = coordinator;
         this.renderer = new Canvas3dRenderer(
@@ -68,7 +70,7 @@ export class LineChart implements ILineChart {
       }
     }
 
-    const contentAreaOption = {
+    const layoutConfig = {
       container: option.container,
       renderer: this.renderer,
       coordinator: this.coordinator,
@@ -76,22 +78,9 @@ export class LineChart implements ILineChart {
       visibilityMap: this.visibilityMap,
     };
 
-    this.root = new RootLayout(
-      contentAreaOption,
-      [
-        [
-          new YAxisView(contentAreaOption),
-          new CompositeLayout(contentAreaOption, [
-            new GridView(contentAreaOption),
-            new SeriesLineView(contentAreaOption),
-          ]),
-        ],
-        [new FlexLayout(contentAreaOption), new XAxisView(contentAreaOption)],
-      ],
-      rect
-    );
+    this.root = createRootLayout(layouts, layoutConfig, option.domRect);
 
-    this.resize(rect);
+    this.resize(option.domRect);
     this.animate();
   }
 
@@ -111,9 +100,9 @@ export class LineChart implements ILineChart {
     const xAxis = this.root.findChildByClass(XAxisView);
 
     this.callbacks.onLayout({
-      xAxis: xAxis!.getLayoutRect(),
-      yAxis: yAxis!.getLayoutRect(),
-      lines: lineView!.getLayoutRect(),
+      xAxis: xAxis?.getLayoutRect() ?? null,
+      yAxis: yAxis?.getLayoutRect() ?? null,
+      lines: lineView?.getLayoutRect() ?? null,
     });
   }
 

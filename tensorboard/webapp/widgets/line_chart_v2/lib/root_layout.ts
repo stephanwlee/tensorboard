@@ -1,9 +1,9 @@
 import {DataDrawable, Drawable} from './drawable';
-import {LayoutConfig, LayoutRect} from './layout';
+import {LayoutOption, LayoutRect} from './layout';
 import {DataSeries, Rect} from './types';
 
 export class RootLayout extends LayoutRect {
-  constructor(config: LayoutConfig, contentGrid: LayoutRect[][], rect: Rect) {
+  constructor(config: LayoutOption, contentGrid: LayoutRect[][], rect: Rect) {
     super(config, contentGrid);
   }
 

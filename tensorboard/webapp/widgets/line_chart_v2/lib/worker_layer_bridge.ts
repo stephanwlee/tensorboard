@@ -1,20 +1,27 @@
-import {ChartExportedLayouts, DataSeries} from './lib/types';
-import {LineChart} from './lib/line_chart';
+import {LayerOption, ChartExportedLayouts, DataSeries} from './types';
+import {Layer} from './layer';
 import {
   MainToGuestEvent,
   MainToGuestMessage,
-  ChartType,
+  RendererType,
   InitMessage,
   GuestToMainType,
-} from './offscreen_chart_types';
+} from './worker_layer_types';
 
 self.addEventListener('message', (event: MessageEvent) => {
   craetePortHandler(event.ports[0], event.data as InitMessage);
 });
 
 function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
-  let lineChart: LineChart;
-  const {canvas, workerId, devicePixelRatio, rect, chartType} = initMessage;
+  let lineChart: Layer;
+  const {
+    canvas,
+    workerId,
+    devicePixelRatio,
+    rect,
+    rendererType,
+    layouts,
+  } = initMessage;
 
   const lineChartCallbacks = {
     onLayout: (layouts: ChartExportedLayouts) => {
@@ -25,32 +32,33 @@ function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
     },
   };
 
-  switch (chartType) {
-    case ChartType.CANVAS:
-      lineChart = new LineChart(
-        workerId,
-        rect,
-        {
-          container: canvas,
-          type: ChartType.CANVAS,
-          devicePixelRatio,
-        },
-        lineChartCallbacks
-      );
+  let layerOption: LayerOption;
+  switch (rendererType) {
+    case RendererType.CANVAS:
+      layerOption = {
+        domRect: rect,
+        container: canvas,
+        type: RendererType.CANVAS,
+        devicePixelRatio,
+        callbacks: lineChartCallbacks,
+      };
       break;
-    case ChartType.WEBGL:
-      lineChart = new LineChart(
-        workerId,
-        rect,
-        {
-          container: canvas,
-          type: ChartType.WEBGL,
-          devicePixelRatio,
-        },
-        lineChartCallbacks
-      );
+    case RendererType.WEBGL:
+      layerOption = {
+        domRect: rect,
+        callbacks: lineChartCallbacks,
+        container: canvas,
+        type: RendererType.WEBGL,
+        devicePixelRatio,
+      };
       break;
   }
+
+  if (!layerOption) {
+    return;
+  }
+
+  lineChart = new Layer(workerId, layerOption, layouts);
 
   port.onmessage = function (event: MessageEvent) {
     const message = event.data as MainToGuestMessage;

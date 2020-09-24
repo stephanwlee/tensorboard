@@ -38,11 +38,11 @@ const COLORS = [
 @Component({
   selector: 'line-chart-demo',
   template: `
-    <main-thread-line-chart
+    <line-chart
       [data]="data"
       [visibleSeries]="visibleSeries"
       [colorMap]="colorMap"
-    ></main-thread-line-chart>
+    ></line-chart>
   `,
   styles: [
     `
@@ -52,8 +52,7 @@ const COLORS = [
         width: 800px;
       }
 
-      main-thread-line-chart,
-      worker-line-chart {
+      line-chart {
         display: inline-block;
         contain: strict;
         height: 100%;

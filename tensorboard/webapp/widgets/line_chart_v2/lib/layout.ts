@@ -5,7 +5,7 @@ export enum LayoutStrategy {
   FIXED,
 }
 
-export interface LayoutConfig {
+export interface LayoutOption {
   container: OffscreenCanvas | Element;
   widthLayoutStrategy?: LayoutStrategy;
   heightLayoutStrategy?: LayoutStrategy;
@@ -25,7 +25,7 @@ export abstract class LayoutRect {
 
   protected layoutChanged: boolean = true;
 
-  constructor(config: LayoutConfig, contentGrid: LayoutRect[][] = []) {
+  constructor(config: LayoutOption, contentGrid: LayoutRect[][] = []) {
     const configWithDefault = {
       widthLayoutStrategy: LayoutStrategy.MATCH_PARENT,
       heightLayoutStrategy: LayoutStrategy.MATCH_PARENT,

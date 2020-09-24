@@ -13,18 +13,19 @@ import {
 
 import {
   ChartExportedLayouts,
-  ChartType,
+  RendererType,
   DataExtent,
   DataSeries,
   DataSeriesMetadataMap,
-  ILineChart,
-  LineChartOption,
-  Rect,
+  LayerCallbacks,
+  LayerOption,
   ViewExtent,
+  ViewType,
 } from './lib/types';
-import {LineChart} from './lib/line_chart';
-import {OffscreenLineChart} from './offscreen_line_chart';
+import {Layer} from './lib/layer';
+import {WorkerLayer} from './lib/worker_layer';
 import {LinearScale, Scale} from './lib/scale';
+import {ILayer} from './lib/layer_types';
 
 let instId = 0;
 
@@ -55,7 +56,7 @@ interface ResizeObserverEntry {
 }
 
 @Component({
-  selector: 'main-thread-line-chart',
+  selector: 'line-chart',
   template: `
     <svg #svg></svg>
     <canvas #canvas></canvas>
@@ -108,10 +109,10 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   @ViewChild('canvas', {static: true, read: ElementRef})
   private readonly canvas!: ElementRef<HTMLCanvasElement>;
 
-  readonly ChartType = ChartType;
+  readonly ChartType = RendererType;
 
   @HostBinding('attr.chart-type')
-  readonly chartType: ChartType = ChartType.WEBGL;
+  readonly rendererType: RendererType = RendererType.WEBGL;
 
   @Input()
   data!: DataSeries[];
@@ -145,7 +146,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     y: [0, 1],
   };
 
-  private lineChart?: ILineChart;
+  private lineChart?: ILayer;
   private dataExtent?: DataExtent;
   private isDataUpdated = false;
   private isMetadataUpdated = false;
@@ -201,26 +202,46 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     }
 
     if (!this.lineChart) {
-      let params: LineChartOption | null = null;
-      switch (this.chartType) {
-        case ChartType.SVG:
+      const callbacks: LayerCallbacks = {
+        onLayout: (layouts) => {
+          this.chartLayout = layouts;
+          this.changeDetector.detectChanges();
+        },
+      };
+
+      const domRect = {
+        x: 0,
+        y: 0,
+        width: this.hostElRef.nativeElement.clientWidth,
+        height: this.hostElRef.nativeElement.clientHeight,
+      };
+
+      let params: LayerOption | null = null;
+      switch (this.rendererType) {
+        case RendererType.SVG:
           params = {
-            type: ChartType.SVG,
+            type: RendererType.SVG,
             container: this.svg.nativeElement,
+            callbacks,
+            domRect,
           };
           break;
-        case ChartType.WEBGL:
+        case RendererType.WEBGL:
           params = {
-            type: ChartType.WEBGL,
+            type: RendererType.WEBGL,
             container: this.canvas.nativeElement,
             devicePixelRatio: window.devicePixelRatio,
+            callbacks,
+            domRect,
           };
           break;
-        case ChartType.CANVAS:
+        case RendererType.CANVAS:
           params = {
-            type: ChartType.CANVAS,
+            type: RendererType.CANVAS,
             container: this.canvas.nativeElement,
             devicePixelRatio: window.devicePixelRatio,
+            callbacks,
+            domRect,
           };
           break;
       }
@@ -229,19 +250,18 @@ export class LineChartComponent implements OnChanges, OnDestroy {
         return;
       }
 
-      const domRect = {
-        x: 0,
-        y: 0,
-        width: this.hostElRef.nativeElement.clientWidth,
-        height: this.hostElRef.nativeElement.clientHeight,
-      };
-      const klass = this.useWorkerIfCanvas ? OffscreenLineChart : LineChart;
-      this.lineChart = new klass(this.id, domRect, params, {
-        onLayout: (layouts) => {
-          this.chartLayout = layouts;
-          this.changeDetector.detectChanges();
-        },
-      });
+      const klass = this.useWorkerIfCanvas ? WorkerLayer : Layer;
+      this.lineChart = new klass(this.id, params, [
+        [
+          {
+            type: ViewType.COMPOSITE_LAYOUT,
+            children: [
+              {type: ViewType.GRID_VIEW, children: undefined},
+              {type: ViewType.SERIES_LINE_VIEW, children: []},
+            ],
+          },
+        ],
+      ]);
     }
 
     if (changes['data']) {

@@ -1,13 +1,14 @@
 import {
   ChartExportedLayouts,
-  ChartType,
+  RendererType,
   DataExtent,
   DataSeriesMetadataMap,
   Rect,
   ViewExtent,
-} from './lib/types';
+  LayoutChildren,
+} from './types';
 
-export {ChartType} from './lib/types';
+export {RendererType} from './types';
 
 export enum MainToGuestEvent {
   SERIES_DATA_UPDATE,
@@ -24,7 +25,8 @@ export interface InitMessage {
   devicePixelRatio: number;
   rect: Rect;
   // Cannot support SVG in the offscreen.
-  chartType: ChartType.WEBGL | ChartType.CANVAS;
+  rendererType: RendererType.WEBGL | RendererType.CANVAS;
+  layouts: LayoutChildren;
 }
 
 export interface UpdateMessage {

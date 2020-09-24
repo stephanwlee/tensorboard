@@ -159,7 +159,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   getDotsBoxStyles() {
-    if (!this.chartLayout) {
+    if (!this.chartLayout || !this.chartLayout.lines) {
       return {};
     }
 
@@ -293,7 +293,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['chartLayout'] && this.chartLayout) {
+    if (changes['chartLayout'] && this.chartLayout && this.chartLayout.lines) {
       const lineLayout = this.chartLayout.lines;
       this.xScale.range(0, lineLayout.width);
       this.yScale.range(lineLayout.height, 0);

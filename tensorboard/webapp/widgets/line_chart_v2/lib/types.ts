@@ -39,50 +39,73 @@ export type SeriesId = string;
 
 export type VisibilityMap = Map<SeriesId, boolean>;
 
-export enum ChartType {
+export enum RendererType {
   SVG,
   CANVAS,
   WEBGL,
 }
 
-export interface SvgLineChartOption {
-  type: ChartType.SVG;
-  container: SVGElement;
-}
-
-export interface CanvasLineChartOption {
-  type: ChartType.CANVAS;
-  devicePixelRatio: number;
-  container: OffscreenCanvas | HTMLCanvasElement;
-}
-
-export interface WebGlLineChartOption {
-  type: ChartType.WEBGL;
-  devicePixelRatio: number;
-  container: OffscreenCanvas | HTMLCanvasElement;
-}
-
-export type LineChartOption =
-  | SvgLineChartOption
-  | CanvasLineChartOption
-  | WebGlLineChartOption;
-
 export interface ChartExportedLayouts {
-  xAxis: Rect;
-  yAxis: Rect;
-  lines: Rect;
+  xAxis: Rect | null;
+  yAxis: Rect | null;
+  lines: Rect | null;
 }
 
-export interface LineChartCallbacks {
+export interface LayerCallbacks {
   onLayout(layouts: ChartExportedLayouts): void;
 }
 
-export interface ILineChart {
-  resize(rect: Rect): void;
-
-  updateMetadata(metadataMap: DataSeriesMetadataMap): void;
-
-  updateViewbox(extent: Extent): void;
-
-  updateData(data: DataSeries[], extent: Extent): void;
+export interface BaseLayerOption {
+  callbacks: LayerCallbacks;
+  domRect: Rect;
 }
+
+export interface SvgLayerOption extends BaseLayerOption {
+  type: RendererType.SVG;
+  container: SVGElement;
+}
+
+export interface CanvasLayerOption extends BaseLayerOption {
+  type: RendererType.CANVAS;
+  devicePixelRatio: number;
+  container: OffscreenCanvas | HTMLCanvasElement;
+}
+
+export interface WebGlLayerOption extends BaseLayerOption {
+  type: RendererType.WEBGL;
+  devicePixelRatio: number;
+  container: OffscreenCanvas | HTMLCanvasElement;
+}
+
+export type LayerOption = SvgLayerOption | CanvasLayerOption | WebGlLayerOption;
+
+export enum ViewType {
+  Y_AXIS_VIEW,
+  X_AXIS_VIEW,
+  FLEX_LAYOUT,
+  GRID_VIEW,
+  SERIES_LINE_VIEW,
+  COMPOSITE_LAYOUT,
+}
+
+export type LayoutChildren = ReadonlyArray<ReadonlyArray<LayoutConfig>>;
+
+export interface ChildlessLayoutConfig {
+  type: ViewType.Y_AXIS_VIEW | ViewType.X_AXIS_VIEW | ViewType.GRID_VIEW;
+  children: undefined;
+}
+
+export interface ChildfulLayoutConfig {
+  type: ViewType.FLEX_LAYOUT | ViewType.SERIES_LINE_VIEW;
+  children: LayoutChildren;
+}
+
+export interface CompositeLayoutConfig {
+  type: ViewType.COMPOSITE_LAYOUT;
+  children: ReadonlyArray<LayoutConfig>;
+}
+
+export type LayoutConfig =
+  | ChildlessLayoutConfig
+  | ChildfulLayoutConfig
+  | CompositeLayoutConfig;
