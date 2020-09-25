@@ -22,6 +22,7 @@ import {
 } from './line_chart_axis_view';
 import {LineChartGridView} from './line_chart_grid_view';
 import {LineChartInteractiveLayerComponent} from './line_chart_interactive_layer';
+import {ResizeDetectorModule} from '../../resize_detector_module';
 
 @NgModule({
   declarations: [
@@ -36,6 +37,6 @@ import {LineChartInteractiveLayerComponent} from './line_chart_interactive_layer
     LineChartGridView,
     LineChartInteractiveLayerComponent,
   ],
-  imports: [CommonModule, OverlayModule],
+  imports: [CommonModule, OverlayModule, ResizeDetectorModule],
 })
 export class SubViewModule {}

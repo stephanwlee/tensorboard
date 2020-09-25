@@ -16,78 +16,35 @@ import {
   Output,
   SimpleChanges,
   ViewChild,
+  HostBinding,
 } from '@angular/core';
-import {Subject, fromEvent} from 'rxjs';
-import {takeUntil} from 'rxjs/operators';
+import {bisect} from 'd3-array';
+import {Subject, fromEvent, of, timer} from 'rxjs';
+import {filter, map, switchMap, takeUntil, tap} from 'rxjs/operators';
 
+import {NgLineChartView} from './ng_line_chart_view';
 import {Scale} from '../lib/scale';
 import {ChartExportedLayouts, DataSeries, Rect, ViewExtent} from '../lib/types';
 
 export interface TooltipDatum {
   name: string;
   color: string;
-  point: {x: number; y: number};
+  point: {x: number; y: number} | null;
 }
 
 enum InteractionState {
   NONE,
-  ZOOMING,
+  DRAG_ZOOMING,
+  SCROLL_ZOOMING,
   PANNING,
 }
+
+const SCROLL_ZOOM_SPEED_FACTOR = 0.01;
 
 @Component({
   selector: 'line-chart-interactive-layer',
   templateUrl: './line_chart_interactive_layer.ng.html',
-  styles: [
-    `
-      :host {
-        height: 100%;
-        position: relative;
-        width: 100%;
-      }
-
-      .dots {
-        position: absolute;
-      }
-
-      .circle {
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        border-radius: 100%;
-        display: inline-block;
-        height: 10px;
-        width: 10px;
-      }
-
-      .tooltip-origin {
-        bottom: 0;
-        left: 0;
-        position: absolute;
-        right: 0;
-      }
-
-      .tooltip-container {
-        background: rgba(50, 50, 50, 0.85);
-        color: #fff;
-        padding: 5px;
-        width: 100%;
-      }
-
-      .tooltip-row {
-        display: flex;
-        align-items: center;
-      }
-
-      .tooltip-row > span {
-        margin: 0 5px;
-      }
-
-      .zoom-box {
-        fill-opacity: 0.03;
-        fill: #000;
-        stroke: #ccc;
-      }
-    `,
-  ],
+  styleUrls: ['./line_chart_interactive_layer.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
@@ -98,6 +55,7 @@ enum InteractionState {
   ],
 })
 export class LineChartInteractiveLayerComponent
+  extends NgLineChartView
   implements OnChanges, OnDestroy {
   @ViewChild('dots', {static: true, read: ElementRef})
   dotsContainer!: ElementRef<SVGElement>;
@@ -113,9 +71,6 @@ export class LineChartInteractiveLayerComponent
 
   @Input()
   colorMap!: Map<string, string>;
-
-  @Input()
-  chartLayout!: ChartExportedLayouts | null;
 
   @Input()
   viewExtent!: ViewExtent;
@@ -154,30 +109,19 @@ export class LineChartInteractiveLayerComponent
   cursoredData: TooltipDatum[] = [];
   tooltipDislayAttached: boolean = false;
 
+  @HostBinding('class.show-zoom-instruction')
+  showZoomInstruction: boolean = false;
+
   private interactionOrigin: {x: number; y: number} | null = null;
   private readonly ngUnsubscribe = new Subject();
 
-  trackBySeriesName(datum: TooltipDatum) {
-    return datum.name;
-  }
-
-  getDotsBoxStyles() {
-    if (!this.chartLayout || !this.chartLayout.lines) {
-      return {};
-    }
-
-    return {
-      left: `${this.chartLayout.lines.x}px`,
-      width: `${this.chartLayout.lines.width}px`,
-      top: `${this.chartLayout.lines.y}px`,
-      height: `${this.chartLayout.lines.height}px`,
-    };
-  }
-
   constructor(
+    readonly hostElRef: ElementRef,
     private readonly changeDetector: ChangeDetectorRef,
     readonly scrollStrategy: CloseScrollStrategy
-  ) {}
+  ) {
+    super(hostElRef);
+  }
 
   ngAfterViewInit() {
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'dblclick', {
@@ -197,10 +141,10 @@ export class LineChartInteractiveLayerComponent
       .subscribe((event) => {
         this.state = event.shiftKey
           ? InteractionState.PANNING
-          : InteractionState.ZOOMING;
+          : InteractionState.DRAG_ZOOMING;
         this.interactionOrigin = {x: event.offsetX, y: event.offsetY};
 
-        if (this.state === InteractionState.ZOOMING) {
+        if (this.state === InteractionState.DRAG_ZOOMING) {
           this.zoomBoxInUiCoordinate = {
             x: event.offsetX,
             width: 0,
@@ -216,28 +160,27 @@ export class LineChartInteractiveLayerComponent
       passive: true,
     })
       .pipe(takeUntil(this.ngUnsubscribe))
-      .subscribe((event) => {
+      .subscribe(() => {
         const zoomBox = this.zoomBoxInUiCoordinate;
         if (
-          this.state === InteractionState.ZOOMING &&
-          zoomBox.width > 5 &&
-          zoomBox.height > 5
+          this.state === InteractionState.DRAG_ZOOMING &&
+          zoomBox.width > 0 &&
+          zoomBox.height > 0
         ) {
-          const {x: xMin, y: yMin} = this.convertDomCoordToDataCoord({
-            x: zoomBox.x,
-            y: zoomBox.y + zoomBox.height,
-          });
-          const {x: xMax, y: yMax} = this.convertDomCoordToDataCoord({
-            x: zoomBox.x + zoomBox.width,
-            y: zoomBox.y,
-          });
+          const xMin = this.getDataX(zoomBox.x);
+          const xMax = this.getDataX(zoomBox.x + zoomBox.width);
+          const yMin = this.getDataY(zoomBox.y + zoomBox.height);
+          const yMax = this.getDataY(zoomBox.y);
+
           this.onViewExtentChange.emit({
             x: [xMin, xMax],
             y: [yMin, yMax],
           });
         }
-        this.state = InteractionState.NONE;
-        this.changeDetector.markForCheck();
+        if (this.state !== InteractionState.NONE) {
+          this.state = InteractionState.NONE;
+          this.changeDetector.markForCheck();
+        }
       });
 
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mouseleave', {
@@ -255,15 +198,38 @@ export class LineChartInteractiveLayerComponent
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
         switch (this.state) {
+          case InteractionState.SCROLL_ZOOMING: {
+            this.state = InteractionState.NONE;
+            this.updateTooltip(event);
+            this.changeDetector.markForCheck();
+            break;
+          }
           case InteractionState.NONE:
             this.updateTooltip(event);
             this.changeDetector.markForCheck();
             break;
-          case InteractionState.PANNING:
-            this.updateTooltip(event);
+          case InteractionState.PANNING: {
+            if (!this.interactionOrigin) {
+              break;
+            }
+            const deltaX = -event.movementX;
+            const deltaY = -event.movementY;
+            const {width: domWidth, height: domHeight} = this.getDomSizeCache();
+            const xMin = this.getDataX(deltaX);
+            const xMax = this.getDataX(domWidth + deltaX);
+            const yMin = this.getDataY(domHeight + deltaY);
+            const yMax = this.getDataY(deltaY);
+            this.onViewExtentChange.emit({
+              x: [xMin, xMax],
+              y: [yMin, yMax],
+            });
             break;
-          case InteractionState.ZOOMING:
-            if (this.interactionOrigin) {
+          }
+          case InteractionState.DRAG_ZOOMING:
+            {
+              if (!this.interactionOrigin) {
+                break;
+              }
               const xs = [this.interactionOrigin.x, event.offsetX];
               const ys = [this.interactionOrigin.y, event.offsetY];
               this.zoomBoxInUiCoordinate = {
@@ -277,6 +243,79 @@ export class LineChartInteractiveLayerComponent
             break;
         }
       });
+
+    fromEvent<WheelEvent>(this.dotsContainer.nativeElement, 'wheel', {
+      passive: false,
+    })
+      .pipe(
+        takeUntil(this.ngUnsubscribe),
+        switchMap((event: WheelEvent) => {
+          const shouldZoom = !event.ctrlKey && !event.shiftKey && event.altKey;
+          this.showZoomInstruction = !shouldZoom;
+          this.changeDetector.markForCheck();
+
+          if (shouldZoom) {
+            return of(event);
+          }
+          return timer(3000).pipe(
+            tap(() => {
+              this.showZoomInstruction = false;
+              this.changeDetector.markForCheck();
+            }),
+            map(() => null)
+          );
+        }),
+        filter((eventOrNull) => Boolean(eventOrNull))
+      )
+      .subscribe((eventOrNull) => {
+        const event = eventOrNull!;
+        event.preventDefault();
+
+        let factor: number;
+        switch (event.deltaMode) {
+          case WheelEvent.DOM_DELTA_PIXEL:
+            factor = 1;
+            break;
+          case WheelEvent.DOM_DELTA_LINE:
+            factor = 8;
+            break;
+          case WheelEvent.DOM_DELTA_PAGE:
+            factor = 20;
+            break;
+          default:
+            factor = 1;
+            console.warn(`Unknown WheelEvent deltaMode: ${event.deltaMode}.`);
+        }
+
+        const {width, height} = this.getDomSizeCache();
+        // When scrolling with mouse hover overed to the right edge, we want to scroll less to the right.
+        const biasX = event.offsetX / width;
+        const biasY = (height - event.offsetY) / height;
+        const magnitude = event.deltaY * factor;
+        const zoomFactor =
+          1 + magnitude < 0
+            ? // Prevent zoomFactor to go 0 in all case.
+              Math.max(magnitude * SCROLL_ZOOM_SPEED_FACTOR, -0.95)
+            : magnitude * SCROLL_ZOOM_SPEED_FACTOR;
+
+        this.onViewExtentChange.emit(
+          this.proposeViewExtentOnZoom(
+            this.viewExtent,
+            zoomFactor,
+            biasX,
+            biasY
+          )
+        );
+
+        if (this.state !== InteractionState.SCROLL_ZOOMING) {
+          this.state = InteractionState.SCROLL_ZOOMING;
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  ngOnChanges() {
+    this.updateCursoredDataAndTooltipVisibility();
   }
 
   ngOnDestroy() {
@@ -284,65 +323,48 @@ export class LineChartInteractiveLayerComponent
     this.ngUnsubscribe.complete();
   }
 
-  transformX(x: number): number {
-    if (!this.chartLayout || !this.chartLayout.lines) {
-      return 0;
-    }
-    const lineLayout = this.chartLayout.lines;
-
-    return this.xScale.forward(this.viewExtent.x, [0, lineLayout.width], x);
-  }
-
-  transformY(y: number): number {
-    if (!this.chartLayout || !this.chartLayout.lines) {
-      return 0;
-    }
-    const lineLayout = this.chartLayout.lines;
-
-    return this.yScale.forward(this.viewExtent.y, [lineLayout.height, 0], y);
-  }
-
-  private convertDomCoordToDataCoord(mouseCoord: {
-    x: number;
-    y: number;
-  }): {x: number; y: number} {
-    if (!this.chartLayout || !this.chartLayout.lines) {
-      return {x: 0, y: 0};
-    }
-    const lineLayout = this.chartLayout.lines;
-
-    return {
-      x: this.xScale.invert(
-        this.viewExtent.x,
-        [0, lineLayout.width],
-        mouseCoord.x
-      ),
-      y: this.yScale.invert(
-        this.viewExtent.y,
-        [lineLayout.height, 0],
-        mouseCoord.y
-      ),
-    };
+  trackBySeriesName(datum: TooltipDatum) {
+    return datum.name;
   }
 
   private updateTooltip(event: MouseEvent) {
-    this.cursorXLocation = this.convertDomCoordToDataCoord({
-      x: event.offsetX,
-      y: 0,
-    }).x;
-    this.updateCursoredData();
-    this.tooltipDislayAttached = true;
+    this.cursorXLocation = this.getDataX(event.offsetX);
+    this.updateCursoredDataAndTooltipVisibility();
+  }
+
+  private proposeViewExtentOnZoom(
+    viewExtent: ViewExtent,
+    factor: number,
+    biasX: number,
+    biasY: number
+  ): ViewExtent {
+    // We want the zoom origin to be exactly at the cursor. This means we need to make sure
+    // to zoom in correct proportion according to the biases.
+    const spreadX = viewExtent.x[1] - viewExtent.x[0];
+    const deltaX = spreadX * factor;
+    const spreadY = viewExtent.y[1] - viewExtent.y[0];
+    const deltaY = spreadY * factor;
+
+    const proposedX: [number, number] = [
+      viewExtent.x[0] - deltaX * biasX,
+      viewExtent.x[1] + deltaX * (1 - biasX),
+    ];
+    const proposedY: [number, number] = [
+      viewExtent.y[0] - deltaY * biasY,
+      viewExtent.y[1] + deltaY * (1 - biasY),
+    ];
+
+    return {
+      x: proposedX[1] < proposedX[0] ? [proposedX[1], proposedX[0]] : proposedX,
+      y: proposedY[1] < proposedY[0] ? [proposedY[1], proposedY[0]] : proposedY,
+    };
   }
 
   onTooltipDisplayDetached() {
     this.tooltipDislayAttached = false;
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    this.updateCursoredData();
-  }
-
-  private updateCursoredData() {
+  private updateCursoredDataAndTooltipVisibility() {
     if (this.cursorXLocation === null) {
       return;
     }
@@ -350,36 +372,35 @@ export class LineChartInteractiveLayerComponent
     this.cursoredData = this.data.map(({name, points}) => {
       return {
         name,
-        point: this.binarySearchClosestPoint(points, this.cursorXLocation!),
+        point: this.findClosestPoint(points, this.cursorXLocation!),
         color: this.colorMap.get(name) || '#f00',
       };
     });
+    this.tooltipDislayAttached = this.cursoredData.some(({point}) =>
+      Boolean(point)
+    );
   }
 
   /**
    * @param points DataSeries points; assumed to be sorted in x.
    * @param targetX target `x` location.
    */
-  private binarySearchClosestPoint(
+  private findClosestPoint(
     points: DataSeries['points'],
     targetX: number
-  ): {x: number; y: number} {
-    let left = 0;
-    let right = points.length - 1;
-    while (right - left > 1) {
-      const mid = Math.ceil((right - left) / 2) + left;
-      if (points[mid].x < targetX) {
-        left = mid;
-      } else if (points[mid].x >= targetX) {
-        right = mid;
-      } else {
-        break;
-      }
-    }
+  ): {x: number; y: number} | null {
+    const right = Math.min(
+      bisect(
+        points.map(({x}) => x),
+        targetX
+      ),
+      points.length - 1
+    );
 
+    const left = Math.max(0, right - 1);
     const closerToLeft =
       Math.abs(points[left].x - targetX) -
-        Math.abs(points[right].x - targetX) >=
+        Math.abs(points[right].x - targetX) <=
       0;
     return closerToLeft ? points[left] : points[right];
   }

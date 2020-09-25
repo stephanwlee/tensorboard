@@ -1,5 +1,3 @@
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
-
 import {XAxisView, YAxisView} from './axis_view';
 import {ColorProvider} from './color_provider';
 import {Canvas2dRenderer, Canvas3dRenderer, SvgRenderer} from './renderer';
@@ -28,8 +26,6 @@ export class Layer implements ILayer {
   private readonly colorProivder = new ColorProvider();
   private readonly visibilityMap: VisibilityMap = new Map();
   private readonly callbacks: LayerCallbacks;
-
-  controls?: OrbitControls;
 
   constructor(
     private readonly id: number,
@@ -60,12 +56,6 @@ export class Layer implements ILayer {
           coordinator,
           option.devicePixelRatio
         );
-
-        if (typeof document !== 'undefined') {
-          this.controls = new OrbitControls(coordinator.getCamera());
-          this.controls.enableZoom = false;
-          this.controls.update();
-        }
         break;
       }
     }
@@ -160,10 +150,6 @@ export class Layer implements ILayer {
       if (this.shouldRedraw) {
         this.shouldRedraw = false;
         this.redraw();
-      }
-
-      if (this.controls) {
-        this.controls.update();
       }
 
       this.renderer.render();

@@ -5,24 +5,78 @@ import {
   Input,
   OnChanges,
   SimpleChanges,
-  ViewChild,
 } from '@angular/core';
 import {ticks} from 'd3-array';
+import {format} from 'd3-format';
 
 import {Scale} from '../lib/scale';
-import {ViewExtent} from '../lib/types';
+import {Extent, ViewExtent} from '../lib/types';
+import {NgLineChartView} from './ng_line_chart_view';
+
+const d3AxisFormatter = format('.3~s');
+const d3AxisIntFormatter = format('~');
+
+function axisFormatter(num: number): string {
+  const absNum = Math.abs(num);
+  if (absNum >= 1000 || absNum <= 0.001) {
+    return d3AxisFormatter(num);
+  }
+  return d3AxisIntFormatter(num);
+}
+
+export abstract class AxisView extends NgLineChartView implements OnChanges {
+  constructor(readonly hostElRef: ElementRef) {
+    super(hostElRef);
+  }
+
+  abstract xGridCount = 10;
+  abstract yGridCount = 10;
+
+  ticks: {x: number[]; y: number[]} = {x: [], y: []};
+
+  trackByTick(tick: number) {
+    return tick;
+  }
+
+  getTickString(tick: number): string {
+    return axisFormatter(tick);
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['viewExtent']) {
+      this.ticks = {
+        x: ticks(this.viewExtent.x[0], this.viewExtent.x[1], this.xGridCount),
+        y: ticks(this.viewExtent.y[0], this.viewExtent.y[1], this.yGridCount),
+      };
+    }
+  }
+
+  getDomX(dataX: number): number {
+    return this.xScale.forward(
+      this.viewExtent.x,
+      [0, this.getDomSizeCache().width],
+      dataX
+    );
+  }
+
+  getDomY(dataY: number): number {
+    return this.yScale.forward(
+      this.viewExtent.y,
+      [this.getDomSizeCache().height, 0],
+      dataY
+    );
+  }
+}
 
 @Component({
   selector: 'line-chart-x-axis',
-  template: `<svg>
-    <line x1="0" y1="0" [attr.x2]="domDimensions.width" y2="0"></line>
-    <g>
-      <ng-container *ngFor="let tick of ticks; trackBy: trackByTick">
-        <text [attr.y]="5" [attr.x]="getDomX(tick)">
-          {{ tick }}
-        </text>
-      </ng-container>
-    </g>
+  template: `<svg detectResize (onResize)="updateDomSizeCache()">
+    <line x1="0" y1="0" [attr.x2]="getDomSizeCache().width" y2="0"></line>
+    <ng-container *ngFor="let tick of ticks.x; trackBy: trackByTick">
+      <text [attr.y]="5" [attr.x]="getDomX(tick)">
+        {{ getTickString(tick) }}
+      </text>
+    </ng-container>
   </svg>`,
   styles: [
     `
@@ -45,74 +99,47 @@ import {ViewExtent} from '../lib/types';
         dominant-baseline: hanging;
         font-size: 11px;
         text-anchor: middle;
+        user-select: none;
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LineChartXAxisComponent implements OnChanges {
+export class LineChartXAxisComponent extends AxisView {
   @Input()
-  viewExtent!: ViewExtent;
+  viewExtent!: Extent;
 
   @Input()
   xScale!: Scale;
 
   @Input()
+  yScale!: Scale;
+
+  @Input()
   xGridCount!: number;
 
-  domDimensions: {width: number; height: number} = {
-    width: 0,
-    height: 0,
-  };
+  @Input()
+  yGridCount!: number;
 
-  ticks: number[] = [];
-
-  constructor(hostElRef: ElementRef) {
-    this.domDimensions = {
-      width: hostElRef.nativeElement.clientWidth,
-      height: hostElRef.nativeElement.clientHeight,
-    };
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['viewExtent']) {
-      this.ticks = ticks(
-        this.viewExtent.x[0],
-        this.viewExtent.x[1],
-        this.xGridCount
-      );
-    }
-  }
-
-  trackByTick(tick: number) {
-    return tick;
-  }
-
-  getDomX(dataX: number): number {
-    return this.xScale.forward(
-      this.viewExtent.x,
-      [0, this.domDimensions.width],
-      dataX
-    );
+  constructor(readonly hostElRef: ElementRef) {
+    super(hostElRef);
   }
 }
 
 @Component({
   selector: 'line-chart-y-axis',
-  template: `<svg>
+  template: `<svg detectResize (onResize)="updateDomSizeCache()">
     <line
-      [attr.x1]="domDimensions.width"
+      [attr.x1]="getDomSizeCache().width"
       y1="0"
-      [attr.x2]="domDimensions.width"
-      [attr.y2]="domDimensions.height"
+      [attr.x2]="getDomSizeCache().width"
+      [attr.y2]="getDomSizeCache().height"
     ></line>
-    <g>
-      <ng-container *ngFor="let tick of ticks; trackBy: trackByTick">
-        <text [attr.x]="domDimensions.width - 5" [attr.y]="getDomY(tick)">
-          {{ tick }}
-        </text>
-      </ng-container>
-    </g>
+    <ng-container *ngFor="let tick of ticks.y; trackBy: trackByTick">
+      <text [attr.x]="getDomSizeCache().width - 5" [attr.y]="getDomY(tick)">
+        {{ getTickString(tick) }}
+      </text>
+    </ng-container>
   </svg>`,
   styles: [
     `
@@ -135,54 +162,29 @@ export class LineChartXAxisComponent implements OnChanges {
         dominant-baseline: central;
         font-size: 11px;
         text-anchor: end;
+        user-select: none;
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LineChartYAxisComponent implements OnChanges {
+export class LineChartYAxisComponent extends AxisView {
   @Input()
-  viewExtent!: ViewExtent;
+  viewExtent!: Extent;
+
+  @Input()
+  xScale!: Scale;
 
   @Input()
   yScale!: Scale;
 
   @Input()
+  xGridCount!: number;
+
+  @Input()
   yGridCount!: number;
 
-  domDimensions: {width: number; height: number} = {
-    width: 0,
-    height: 0,
-  };
-
-  ticks: number[] = [];
-
-  constructor(hostElRef: ElementRef) {
-    this.domDimensions = {
-      width: hostElRef.nativeElement.clientWidth,
-      height: hostElRef.nativeElement.clientHeight,
-    };
-  }
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['viewExtent']) {
-      this.ticks = ticks(
-        this.viewExtent.y[0],
-        this.viewExtent.y[1],
-        this.yGridCount
-      );
-    }
-  }
-
-  trackByTick(tick: number) {
-    return tick;
-  }
-
-  getDomY(dataY: number): number {
-    return this.yScale.forward(
-      this.viewExtent.y,
-      [0, this.domDimensions.height],
-      dataY
-    );
+  constructor(readonly hostElRef: ElementRef) {
+    super(hostElRef);
   }
 }

@@ -75,7 +75,6 @@ interface ResizeObserverEntry {
           [data]="data"
           [visibleSeries]="visibleSeries"
           [colorMap]="colorMap"
-          [chartLayout]="chartLayout"
           [viewExtent]="viewExtent"
           [xScale]="xScale"
           [yScale]="yScale"
