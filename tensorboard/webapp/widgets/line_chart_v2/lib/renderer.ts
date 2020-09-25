@@ -177,12 +177,10 @@ export class Canvas3dRenderer implements Renderer {
       context: canvas.getContext('webgl2', {
         antialias: true,
         precision: 'highp',
-        alpha: false,
+        alpha: true,
       }) as WebGLRenderingContext,
     });
     this.renderer.setPixelRatio(devicePixelRatio);
-
-    this.scene.background = new THREE.Color(0xffffff);
   }
 
   onResize(rect: Rect) {

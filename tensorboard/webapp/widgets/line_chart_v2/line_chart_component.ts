@@ -21,6 +21,7 @@ import {
   LayerOption,
   ViewExtent,
   ViewType,
+  Rect,
 } from './lib/types';
 import {Layer} from './lib/layer';
 import {WorkerLayer} from './lib/worker_layer';
@@ -58,45 +59,96 @@ interface ResizeObserverEntry {
 @Component({
   selector: 'line-chart',
   template: `
-    <svg #svg></svg>
-    <canvas #canvas></canvas>
-    <line-chart-interactive-layer
-      [data]="data"
-      [visibleSeries]="visibleSeries"
-      [colorMap]="colorMap"
-      [chartLayout]="chartLayout"
-      [viewExtent]="viewExtent"
-      [xScale]="xScale"
-      [yScale]="yScale"
-      (onViewExtentChange)="onViewExtentChanged($event)"
-      (onViewExtentReset)="onViewExtentReset()"
-    ></line-chart-interactive-layer>
+    <div class="container">
+      <div class="series-view">
+        <line-chart-grid-view
+          [viewExtent]="viewExtent"
+          [xScale]="xScale"
+          [yScale]="yScale"
+          [xGridCount]="10"
+          [yGridCount]="6"
+        ></line-chart-grid-view>
+
+        <svg #svg></svg>
+        <canvas #canvas></canvas>
+        <line-chart-interactive-layer
+          [data]="data"
+          [visibleSeries]="visibleSeries"
+          [colorMap]="colorMap"
+          [chartLayout]="chartLayout"
+          [viewExtent]="viewExtent"
+          [xScale]="xScale"
+          [yScale]="yScale"
+          [overlayRefContainer]="overlayAnchor"
+          (onViewExtentChange)="onViewExtentChanged($event)"
+          (onViewExtentReset)="onViewExtentReset()"
+        ></line-chart-interactive-layer>
+      </div>
+      <line-chart-y-axis
+        [viewExtent]="viewExtent"
+        [yScale]="yScale"
+        [yGridCount]="6"
+      ></line-chart-y-axis>
+      <line-chart-x-axis
+        #overlayAnchor="cdkOverlayOrigin"
+        cdkOverlayOrigin
+        [viewExtent]="viewExtent"
+        [xScale]="xScale"
+        [xGridCount]="10"
+      ></line-chart-x-axis>
+    </div>
   `,
   styles: [
     `
       :host {
-        position: relative;
-      }
-
-      :host,
-      svg,
-      canvas {
         height: 100%;
         width: 100%;
       }
 
-      :host[chart-type='svg'] canvas {
+      .container {
+        background: #fff;
+        display: grid;
+        height: 100%;
+        overflow: hidden;
+        width: 100%;
+        grid-template-areas:
+          'yaxis series'
+          '. xaxis';
+        grid-template-columns: 50px 1fr;
+        grid-auto-rows: 1fr 30px;
+      }
+
+      .series-view {
+        grid-area: series;
+        position: relative;
+        overflow: hidden;
+      }
+
+      :host[renderer-type='svg'] canvas {
         display: none;
       }
 
-      :host:not([chart-type='svg']) svg {
+      :host:not([renderer-type='svg']) svg {
         display: none;
       }
 
+      canvas,
+      svg,
+      line-chart-grid-view,
       line-chart-interactive-layer {
+        height: 100%;
+        left: 0;
         position: absolute;
         top: 0;
-        left: 0;
+        width: 100%;
+      }
+
+      line-chart-x-axis {
+        grid-area: xaxis;
+      }
+
+      line-chart-y-axis {
+        grid-area: yaxis;
       }
     `,
   ],
@@ -109,9 +161,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   @ViewChild('canvas', {static: true, read: ElementRef})
   private readonly canvas!: ElementRef<HTMLCanvasElement>;
 
-  readonly ChartType = RendererType;
-
-  @HostBinding('attr.chart-type')
+  @HostBinding('attr.renderer-type')
   readonly rendererType: RendererType = RendererType.WEBGL;
 
   @Input()
@@ -169,12 +219,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
           if (!entry.contentRect) {
             return;
           }
-          this.lineChart.resize({
-            x: 0,
-            y: 0,
-            width: entry.contentRect.width,
-            height: entry.contentRect.height,
-          });
+          this.lineChart.resize(this.getDomRect());
         }
       }
     );
@@ -209,14 +254,8 @@ export class LineChartComponent implements OnChanges, OnDestroy {
         },
       };
 
-      const domRect = {
-        x: 0,
-        y: 0,
-        width: this.hostElRef.nativeElement.clientWidth,
-        height: this.hostElRef.nativeElement.clientHeight,
-      };
-
       let params: LayerOption | null = null;
+      const domRect = this.getDomRect();
       switch (this.rendererType) {
         case RendererType.SVG:
           params = {
@@ -225,6 +264,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
             callbacks,
             domRect,
           };
+          this.svg.nativeElement;
           break;
         case RendererType.WEBGL:
           params = {
@@ -241,6 +281,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
             container: this.canvas.nativeElement,
             devicePixelRatio: window.devicePixelRatio,
             callbacks,
+
             domRect,
           };
           break;
@@ -252,15 +293,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
 
       const klass = this.useWorkerIfCanvas ? WorkerLayer : Layer;
       this.lineChart = new klass(this.id, params, [
-        [
-          {
-            type: ViewType.COMPOSITE_LAYOUT,
-            children: [
-              {type: ViewType.GRID_VIEW, children: undefined},
-              {type: ViewType.SERIES_LINE_VIEW, children: []},
-            ],
-          },
-        ],
+        [{type: ViewType.SERIES_LINE_VIEW, children: []}],
       ]);
     }
 
@@ -280,6 +313,28 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     }
 
     this.updateProp();
+  }
+
+  private getDomRect(): Rect {
+    switch (this.rendererType) {
+      case RendererType.SVG:
+        return {
+          x: 0,
+          y: 0,
+          width: this.svg.nativeElement.clientWidth,
+          height: this.svg.nativeElement.clientHeight,
+        };
+      case RendererType.WEBGL:
+      case RendererType.CANVAS:
+        return {
+          x: 0,
+          y: 0,
+          width: this.canvas.nativeElement.clientWidth,
+          height: this.canvas.nativeElement.clientHeight,
+        };
+      default:
+        throw new Error(`Unsupported rendererType: ${this.rendererType}`);
+    }
   }
 
   private updateProp() {
@@ -341,8 +396,8 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     }
 
     return {
-      x: this.xScale.niceDomain(...this.dataExtent.x),
-      y: this.yScale.niceDomain(...this.dataExtent.y),
+      x: this.xScale.nice(this.dataExtent.x),
+      y: this.yScale.nice(this.dataExtent.y),
     };
   }
 }

@@ -77,6 +77,7 @@ tf_ts_library(
         "scale.ts",
     ],
     deps = [
+        ":types",
         "@npm//@types/d3-scale",
         "@npm//d3-scale",
     ],

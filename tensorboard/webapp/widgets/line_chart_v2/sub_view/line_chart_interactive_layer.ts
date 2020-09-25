@@ -20,8 +20,8 @@ import {
 import {Subject, fromEvent} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
-import {Scale} from './lib/scale';
-import {ChartExportedLayouts, DataSeries, Rect, ViewExtent} from './lib/types';
+import {Scale} from '../lib/scale';
+import {ChartExportedLayouts, DataSeries, Rect, ViewExtent} from '../lib/types';
 
 export interface TooltipDatum {
   name: string;
@@ -126,6 +126,9 @@ export class LineChartInteractiveLayerComponent
   @Input()
   yScale!: Scale;
 
+  @Input()
+  overlayRefContainer!: ElementRef;
+
   @Output()
   onViewExtentChange = new EventEmitter<ViewExtent>();
 
@@ -214,24 +217,23 @@ export class LineChartInteractiveLayerComponent
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
+        const zoomBox = this.zoomBoxInUiCoordinate;
         if (
           this.state === InteractionState.ZOOMING &&
-          this.zoomBoxInUiCoordinate.width > 5 &&
-          this.zoomBoxInUiCoordinate.height > 5
+          zoomBox.width > 5 &&
+          zoomBox.height > 5
         ) {
+          const {x: xMin, y: yMin} = this.convertDomCoordToDataCoord({
+            x: zoomBox.x,
+            y: zoomBox.y + zoomBox.height,
+          });
+          const {x: xMax, y: yMax} = this.convertDomCoordToDataCoord({
+            x: zoomBox.x + zoomBox.width,
+            y: zoomBox.y,
+          });
           this.onViewExtentChange.emit({
-            x: [
-              this.xScale.invert(this.zoomBoxInUiCoordinate.x),
-              this.xScale.invert(
-                this.zoomBoxInUiCoordinate.x + this.zoomBoxInUiCoordinate.width
-              ),
-            ],
-            y: [
-              this.yScale.invert(
-                this.zoomBoxInUiCoordinate.y + this.zoomBoxInUiCoordinate.height
-              ),
-              this.yScale.invert(this.zoomBoxInUiCoordinate.y),
-            ],
+            x: [xMin, xMax],
+            y: [yMin, yMax],
           });
         }
         this.state = InteractionState.NONE;
@@ -282,8 +284,52 @@ export class LineChartInteractiveLayerComponent
     this.ngUnsubscribe.complete();
   }
 
+  transformX(x: number): number {
+    if (!this.chartLayout || !this.chartLayout.lines) {
+      return 0;
+    }
+    const lineLayout = this.chartLayout.lines;
+
+    return this.xScale.forward(this.viewExtent.x, [0, lineLayout.width], x);
+  }
+
+  transformY(y: number): number {
+    if (!this.chartLayout || !this.chartLayout.lines) {
+      return 0;
+    }
+    const lineLayout = this.chartLayout.lines;
+
+    return this.yScale.forward(this.viewExtent.y, [lineLayout.height, 0], y);
+  }
+
+  private convertDomCoordToDataCoord(mouseCoord: {
+    x: number;
+    y: number;
+  }): {x: number; y: number} {
+    if (!this.chartLayout || !this.chartLayout.lines) {
+      return {x: 0, y: 0};
+    }
+    const lineLayout = this.chartLayout.lines;
+
+    return {
+      x: this.xScale.invert(
+        this.viewExtent.x,
+        [0, lineLayout.width],
+        mouseCoord.x
+      ),
+      y: this.yScale.invert(
+        this.viewExtent.y,
+        [lineLayout.height, 0],
+        mouseCoord.y
+      ),
+    };
+  }
+
   private updateTooltip(event: MouseEvent) {
-    this.cursorXLocation = this.xScale.invert(event.offsetX);
+    this.cursorXLocation = this.convertDomCoordToDataCoord({
+      x: event.offsetX,
+      y: 0,
+    }).x;
     this.updateCursoredData();
     this.tooltipDislayAttached = true;
   }
@@ -293,17 +339,6 @@ export class LineChartInteractiveLayerComponent
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['chartLayout'] && this.chartLayout && this.chartLayout.lines) {
-      const lineLayout = this.chartLayout.lines;
-      this.xScale.range(0, lineLayout.width);
-      this.yScale.range(lineLayout.height, 0);
-    }
-
-    if (changes['viewExtent']) {
-      this.xScale.domain(this.viewExtent.x[0], this.viewExtent.x[1]);
-      this.yScale.domain(this.viewExtent.y[0], this.viewExtent.y[1]);
-    }
-
     this.updateCursoredData();
   }
 

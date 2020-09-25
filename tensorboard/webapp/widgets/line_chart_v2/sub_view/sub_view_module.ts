@@ -16,12 +16,26 @@ import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {OverlayModule} from '@angular/cdk/overlay';
 
-import {LineChartComponent} from './line_chart_component';
-import {SubViewModule} from './sub_view/sub_view_module';
+import {
+  LineChartXAxisComponent,
+  LineChartYAxisComponent,
+} from './line_chart_axis_view';
+import {LineChartGridView} from './line_chart_grid_view';
+import {LineChartInteractiveLayerComponent} from './line_chart_interactive_layer';
 
 @NgModule({
-  declarations: [LineChartComponent],
-  exports: [LineChartComponent],
-  imports: [CommonModule, OverlayModule, SubViewModule],
+  declarations: [
+    LineChartXAxisComponent,
+    LineChartYAxisComponent,
+    LineChartGridView,
+    LineChartInteractiveLayerComponent,
+  ],
+  exports: [
+    LineChartXAxisComponent,
+    LineChartYAxisComponent,
+    LineChartGridView,
+    LineChartInteractiveLayerComponent,
+  ],
+  imports: [CommonModule, OverlayModule],
 })
-export class LineChartModule {}
+export class SubViewModule {}

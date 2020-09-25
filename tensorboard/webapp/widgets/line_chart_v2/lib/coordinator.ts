@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-import {LinearScale, Scale} from './scale';
-import {DataExtent, Rect} from './types';
+import {LinearScale, Scale, convertRectToExtent} from './scale';
+import {DataExtent, Rect, ViewExtent} from './types';
 
 type XCoordinate = number;
 type YCoordinate = number;
@@ -33,7 +33,7 @@ export class Coordinator {
   };
 
   protected lastUpdated: number = 0;
-  protected currentViewportRect: Rect = {
+  private currentViewportRect: Rect = {
     x: 0,
     width: 1,
     y: 0,
@@ -55,8 +55,6 @@ export class Coordinator {
   }
 
   setDataExtent(extent: DataExtent): void {
-    this.xScale.domain(extent.x[0], extent.x[1]);
-    this.yScale.domain(extent.y[0], extent.y[1]);
     this.lastUpdated = Date.now();
   }
 
@@ -65,10 +63,7 @@ export class Coordinator {
   }
 
   setViewportRect(rectInDataCoordinate: Rect) {
-    const rect = rectInDataCoordinate;
     this.currentViewportRect = rectInDataCoordinate;
-    this.xScale.domain(rect.x, rect.x + rect.width);
-    this.yScale.domain(rect.y, rect.y + rect.height);
     this.lastUpdated = Date.now();
   }
 
@@ -82,11 +77,18 @@ export class Coordinator {
     dataCoordinate: [XCoordinate, YCoordinate]
   ): [XCoordinate, YCoordinate] {
     const rect = rectInUiCoordinate;
-    this.xScale.range(rect.x, rect.x + rect.width);
-    this.yScale.range(rect.y + rect.height, rect.y);
+    const domain = convertRectToExtent(this.currentViewportRect);
     return [
-      this.xScale.getValue(dataCoordinate[0]),
-      this.yScale.getValue(dataCoordinate[1]),
+      this.xScale.forward(
+        domain.x,
+        [rect.x, rect.x + rect.width],
+        dataCoordinate[0]
+      ),
+      this.yScale.forward(
+        domain.y,
+        [rect.y + rect.height, rect.y],
+        dataCoordinate[1]
+      ),
     ];
   }
 
@@ -134,16 +136,31 @@ export class THREECoordinator extends Coordinator {
   }
 
   private adjustCamera(): void {
-    const domRect = this.domContainerRect;
-    this.xScale.range(domRect.x, domRect.x + domRect.width);
-    this.yScale.range(domRect.y + domRect.height, domRect.y);
-
     const viewRect = this.getCurrentViewportRect();
+    const domain = convertRectToExtent(viewRect);
+    const range: ViewExtent = {
+      x: [
+        this.domContainerRect.x,
+        this.domContainerRect.x + this.domContainerRect.width,
+      ],
+      y: [
+        this.domContainerRect.y + this.domContainerRect.height,
+        this.domContainerRect.y,
+      ],
+    };
 
-    this.camera.left = this.xScale.getValue(viewRect.x);
-    this.camera.right = this.xScale.getValue(viewRect.x + viewRect.width);
-    this.camera.top = this.yScale.getValue(viewRect.y + viewRect.height);
-    this.camera.bottom = this.yScale.getValue(viewRect.y);
+    this.camera.left = this.xScale.forward(domain.x, range.x, viewRect.x);
+    this.camera.right = this.xScale.forward(
+      domain.x,
+      range.x,
+      viewRect.x + viewRect.width
+    );
+    this.camera.top = this.yScale.forward(
+      domain.y,
+      range.y,
+      viewRect.y + viewRect.height
+    );
+    this.camera.bottom = this.yScale.forward(domain.y, range.y, viewRect.y);
 
     this.camera.updateProjectionMatrix();
   }

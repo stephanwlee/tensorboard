@@ -2,8 +2,8 @@
   <ng-container *ngIf="state === InteractionState.NONE">
     <circle
       *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
-      [attr.cx]="xScale.getValue(datum.point.x)"
-      [attr.cy]="yScale.getValue(datum.point.y)"
+      [attr.cx]="transformX(datum.point.x)"
+      [attr.cy]="transformY(datum.point.y)"
       [attr.fill]="datum.color"
       r="4"
     ></circle>
@@ -24,7 +24,7 @@
 ></div>
 <ng-template
   cdkConnectedOverlay
-  [cdkConnectedOverlayOrigin]="tooltipOrigin"
+  [cdkConnectedOverlayOrigin]="overlayRefContainer"
   [cdkConnectedOverlayOffsetX]="chartLayout?.lines.x"
   [cdkConnectedOverlayWidth]="chartLayout?.lines.width"
   [cdkConnectedOverlayOpen]="tooltipDislayAttached"

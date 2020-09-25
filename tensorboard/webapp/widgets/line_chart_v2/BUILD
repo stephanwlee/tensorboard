@@ -26,17 +26,13 @@ ng_module(
     name = "line_chart_v2",
     srcs = [
         "line_chart_component.ts",
-        "line_chart_interactive_layer.ts",
         "line_chart_module.ts",
     ],
-    assets = [
-        "line_chart_interactive_layer.ng.html",
-    ],
     deps = [
-        "//tensorboard/webapp/angular:expect_angular_cdk_overlay",
         "//tensorboard/webapp/widgets/line_chart_v2/lib",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:types",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:worker_layer",
+        "//tensorboard/webapp/widgets/line_chart_v2/sub_view",
         "@npm//@angular/common",
         "@npm//@angular/core",
     ],
