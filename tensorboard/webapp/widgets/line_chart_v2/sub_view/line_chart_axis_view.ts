@@ -6,17 +6,20 @@ import {
   OnChanges,
   SimpleChanges,
 } from '@angular/core';
-import {ticks} from 'd3-array';
 import {format} from 'd3-format';
 
 import {Scale} from '../lib/scale';
-import {Extent, ViewExtent} from '../lib/types';
+import {Extent} from '../lib/types';
 import {NgLineChartView} from './ng_line_chart_view';
 
-const d3AxisFormatter = format('.3~s');
+const d3AxisFormatter = format('.2~e');
 const d3AxisIntFormatter = format('~');
 
 function axisFormatter(num: number): string {
+  if (num === 0) {
+    return '0';
+  }
+
   const absNum = Math.abs(num);
   if (absNum >= 1000 || absNum <= 0.001) {
     return d3AxisFormatter(num);
@@ -44,27 +47,22 @@ export abstract class AxisView extends NgLineChartView implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['viewExtent']) {
+      let xTicks: number[] = [];
+      let yTicks: number[] = [];
+
+      if (this.xScale) {
+        xTicks = this.xScale.ticks(this.viewExtent.x, this.xGridCount);
+      }
+
+      if (this.yScale) {
+        yTicks = this.yScale.ticks(this.viewExtent.y, this.yGridCount);
+      }
+
       this.ticks = {
-        x: ticks(this.viewExtent.x[0], this.viewExtent.x[1], this.xGridCount),
-        y: ticks(this.viewExtent.y[0], this.viewExtent.y[1], this.yGridCount),
+        x: xTicks,
+        y: yTicks,
       };
     }
-  }
-
-  getDomX(dataX: number): number {
-    return this.xScale.forward(
-      this.viewExtent.x,
-      [0, this.getDomSizeCache().width],
-      dataX
-    );
-  }
-
-  getDomY(dataY: number): number {
-    return this.yScale.forward(
-      this.viewExtent.y,
-      [this.getDomSizeCache().height, 0],
-      dataY
-    );
   }
 }
 

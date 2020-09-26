@@ -8,6 +8,7 @@ import {
   LayerOption,
   LayoutChildren,
   Rect,
+  ScaleType,
   ViewExtent,
 } from './types';
 
@@ -26,4 +27,8 @@ export abstract class ILayer {
   abstract updateViewbox(extent: ViewExtent): void;
 
   abstract updateData(data: DataSeries[], extent: DataExtent): void;
+
+  abstract setXScaleType(type: ScaleType): void;
+
+  abstract setYScaleType(type: ScaleType): void;
 }

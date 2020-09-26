@@ -17,6 +17,7 @@ import {AxisView} from './line_chart_axis_view';
   template: `<svg>
     <line
       *ngFor="let tick of ticks.x; trackBy: trackByTick"
+      [class.zero]="tick === 0"
       [attr.x1]="getDomX(tick)"
       y1="0"
       [attr.x2]="getDomX(tick)"
@@ -24,25 +25,11 @@ import {AxisView} from './line_chart_axis_view';
     ></line>
     <line
       *ngFor="let tick of ticks.y; trackBy: trackByTick"
+      [class.zero]="tick === 0"
       x1="0"
       [attr.y1]="getDomY(tick)"
       [attr.x2]="getDomSizeCache().width"
       [attr.y2]="getDomY(tick)"
-    ></line>
-    <line
-      class="zero"
-      x1="0"
-      [attr.y1]="getDomY(0)"
-      [attr.x2]="getDomSizeCache().width"
-      [attr.y2]="getDomY(0)"
-    ></line>
-
-    <line
-      class="zero"
-      [attr.x1]="getDomX(0)"
-      y1="0"
-      [attr.x2]="getDomX(0)"
-      [attr.y2]="getDomSizeCache().height"
     ></line>
   </svg>`,
   styles: [

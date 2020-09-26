@@ -10,6 +10,11 @@ export interface DataSeries {
   points: Array<{x: number; y: number}>;
 }
 
+export enum ScaleType {
+  LINEAR,
+  LOG10,
+}
+
 /**
  * Flattened array of 2d coordinates.
  *
@@ -58,6 +63,8 @@ export interface LayerCallbacks {
 export interface BaseLayerOption {
   callbacks: LayerCallbacks;
   domRect: Rect;
+  xScaleType: ScaleType;
+  yScaleType: ScaleType;
 }
 
 export interface SvgLayerOption extends BaseLayerOption {

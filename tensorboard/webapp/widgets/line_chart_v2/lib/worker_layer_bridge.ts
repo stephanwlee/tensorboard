@@ -9,10 +9,10 @@ import {
 } from './worker_layer_types';
 
 self.addEventListener('message', (event: MessageEvent) => {
-  craetePortHandler(event.ports[0], event.data as InitMessage);
+  createPortHandler(event.ports[0], event.data as InitMessage);
 });
 
-function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
+function createPortHandler(port: MessagePort, initMessage: InitMessage) {
   let lineChart: Layer;
   const {
     canvas,
@@ -21,6 +21,8 @@ function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
     rect,
     rendererType,
     layouts,
+    xScaleType,
+    yScaleType,
   } = initMessage;
 
   const lineChartCallbacks = {
@@ -36,20 +38,24 @@ function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
   switch (rendererType) {
     case RendererType.CANVAS:
       layerOption = {
+        type: RendererType.CANVAS,
         domRect: rect,
         container: canvas,
-        type: RendererType.CANVAS,
         devicePixelRatio,
         callbacks: lineChartCallbacks,
+        xScaleType,
+        yScaleType,
       };
       break;
     case RendererType.WEBGL:
       layerOption = {
+        type: RendererType.WEBGL,
         domRect: rect,
         callbacks: lineChartCallbacks,
         container: canvas,
-        type: RendererType.WEBGL,
         devicePixelRatio,
+        xScaleType,
+        yScaleType,
       };
       break;
   }
@@ -98,6 +104,19 @@ function craetePortHandler(port: MessagePort, initMessage: InitMessage) {
       }
       case MainToGuestEvent.RESIZE: {
         lineChart.resize(message.rect);
+        break;
+      }
+      case MainToGuestEvent.SCALE_UPDATE: {
+        switch (message.axis) {
+          case 'x':
+            lineChart.setXScaleType(message.scaleType);
+            break;
+          case 'y':
+            lineChart.setYScaleType(message.scaleType);
+            break;
+          default:
+            throw new RangeError(`Unknown axis: ${message.axis}`);
+        }
         break;
       }
     }

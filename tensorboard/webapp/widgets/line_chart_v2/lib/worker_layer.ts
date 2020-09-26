@@ -1,20 +1,22 @@
 import {
-  DataSeries,
-  LayerCallbacks,
-  DataSeriesMetadataMap,
-  LayerOption,
-  Rect,
   DataExtent,
-  ViewExtent,
+  DataSeries,
+  DataSeriesMetadataMap,
+  LayerCallbacks,
+  LayerOption,
   LayoutChildren,
+  Rect,
+  ScaleType,
+  ViewExtent,
 } from './types';
 import {getWorker} from './worker';
 import {
-  RendererType,
   GuestToMainMessage,
   GuestToMainType,
+  InitMessage,
   MainToGuestEvent,
   MainToGuestMessage,
+  RendererType,
 } from './worker_layer_types';
 import {ILayer} from './layer_types';
 
@@ -43,12 +45,31 @@ export class WorkerLayer implements ILayer {
         type: MainToGuestEvent.INIT,
         workerId: id,
         canvas,
+        layouts,
         devicePixelRatio: window.devicePixelRatio,
         rect: option.domRect,
-        chartType: option.type,
-      },
+        rendererType: option.type,
+        xScaleType: option.xScaleType,
+        yScaleType: option.yScaleType,
+      } as InitMessage,
       [canvas, channel.port2]
     );
+  }
+
+  setXScaleType(type: ScaleType) {
+    this.sendMessage({
+      type: MainToGuestEvent.SCALE_UPDATE,
+      axis: 'x',
+      scaleType: type,
+    });
+  }
+
+  setYScaleType(type: ScaleType) {
+    this.sendMessage({
+      type: MainToGuestEvent.SCALE_UPDATE,
+      axis: 'y',
+      scaleType: type,
+    });
   }
 
   resize(rect: Rect): void {
@@ -102,7 +123,10 @@ export class WorkerLayer implements ILayer {
     );
   }
 
-  private sendMessage(message: MainToGuestMessage, transfer?: Transferable[]) {
+  private sendMessage(
+    message: Exclude<MainToGuestMessage, InitMessage>,
+    transfer?: Transferable[]
+  ) {
     if (transfer) {
       this.toWorkerChannel.postMessage(message, transfer);
     } else {

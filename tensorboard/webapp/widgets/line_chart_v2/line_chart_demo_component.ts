@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {DataExtent, DataSeries} from './lib/types';
+import {DataExtent, DataSeries, ScaleType} from './lib/types';
 import {createDataSeries} from './create_data';
 
 const NUM_SERIES = 2;
@@ -42,6 +42,8 @@ const COLORS = [
       [data]="data"
       [visibleSeries]="visibleSeries"
       [colorMap]="colorMap"
+      [xScaleType]="ScaleType.LINEAR"
+      [yScaleType]="ScaleType.LINEAR"
     ></line-chart>
   `,
   styles: [
@@ -66,6 +68,8 @@ export class LineChartDemoComponent {
   readonly data: DataSeries[] = createDataSeries(NUM_SERIES, NUM_POINTS);
 
   visibleSeries = new Set<string>([...this.data.map(({name}) => name)]);
+
+  readonly ScaleType = ScaleType;
 
   colorMap = new Map<string, string>(
     this.data.map(({name}, index) => {

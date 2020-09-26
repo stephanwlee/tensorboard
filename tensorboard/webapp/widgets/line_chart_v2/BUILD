@@ -27,6 +27,7 @@ ng_module(
     srcs = [
         "line_chart_component.ts",
         "line_chart_module.ts",
+        "utils.ts",
     ],
     deps = [
         "//tensorboard/webapp/widgets/line_chart_v2/lib",

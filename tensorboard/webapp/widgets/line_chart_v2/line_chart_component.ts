@@ -13,20 +13,22 @@ import {
 
 import {
   ChartExportedLayouts,
-  RendererType,
   DataExtent,
   DataSeries,
   DataSeriesMetadataMap,
   LayerCallbacks,
   LayerOption,
+  Rect,
+  RendererType,
+  ScaleType,
   ViewExtent,
   ViewType,
-  Rect,
 } from './lib/types';
 import {Layer} from './lib/layer';
 import {WorkerLayer} from './lib/worker_layer';
-import {LinearScale, Scale} from './lib/scale';
+import {Scale, createScale} from './lib/scale';
 import {ILayer} from './lib/layer_types';
+import {isWebGl2Supported, isOffscreenCanvasSupported} from './utils';
 
 let instId = 0;
 
@@ -48,10 +50,6 @@ function calculateSeriesExtent(data: DataSeries[]): DataExtent {
   return {x: [xMin, xMax], y: [yMin, yMax]};
 }
 
-export enum ScaleType {
-  LINEAR,
-}
-
 interface ResizeObserverEntry {
   contentRect: DOMRectReadOnly;
 }
@@ -68,7 +66,6 @@ interface ResizeObserverEntry {
           [xGridCount]="10"
           [yGridCount]="6"
         ></line-chart-grid-view>
-
         <svg #svg></svg>
         <canvas #canvas></canvas>
         <line-chart-interactive-layer
@@ -161,7 +158,10 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   private readonly canvas!: ElementRef<HTMLCanvasElement>;
 
   @HostBinding('attr.renderer-type')
-  readonly rendererType: RendererType = RendererType.WEBGL;
+  @Input()
+  readonly preferredRendererType: RendererType = isWebGl2Supported()
+    ? RendererType.WEBGL
+    : RendererType.SVG;
 
   @Input()
   data!: DataSeries[];
@@ -176,7 +176,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   colorMap!: Map<string, string>;
 
   @Input()
-  useWorkerIfCanvas: boolean = false;
+  forceUseWorkerIfCanvas: boolean = false;
 
   @Input()
   xScaleType: ScaleType = ScaleType.LINEAR;
@@ -188,8 +188,8 @@ export class LineChartComponent implements OnChanges, OnDestroy {
 
   chartLayout: ChartExportedLayouts | null = null;
 
-  xScale: Scale = new LinearScale();
-  yScale: Scale = new LinearScale();
+  xScale: Scale = createScale(this.xScaleType);
+  yScale: Scale = createScale(this.xScaleType);
   viewExtent: ViewExtent = {
     x: [0, 1],
     y: [0, 1],
@@ -231,18 +231,10 @@ export class LineChartComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['xScaleType']) {
-      switch (this.xScaleType) {
-        case ScaleType.LINEAR:
-          this.xScale = new LinearScale();
-          break;
-      }
+      this.xScale = createScale(this.xScaleType);
     }
     if (changes['yScaleType']) {
-      switch (this.yScaleType) {
-        case ScaleType.LINEAR:
-          this.yScale = new LinearScale();
-          break;
-      }
+      this.yScale = createScale(this.yScaleType);
     }
 
     if (!this.lineChart) {
@@ -255,13 +247,15 @@ export class LineChartComponent implements OnChanges, OnDestroy {
 
       let params: LayerOption | null = null;
       const domRect = this.getDomRect();
-      switch (this.rendererType) {
+      switch (this.preferredRendererType) {
         case RendererType.SVG:
           params = {
             type: RendererType.SVG,
             container: this.svg.nativeElement,
             callbacks,
             domRect,
+            xScaleType: this.xScaleType,
+            yScaleType: this.yScaleType,
           };
           this.svg.nativeElement;
           break;
@@ -272,6 +266,8 @@ export class LineChartComponent implements OnChanges, OnDestroy {
             devicePixelRatio: window.devicePixelRatio,
             callbacks,
             domRect,
+            xScaleType: this.xScaleType,
+            yScaleType: this.yScaleType,
           };
           break;
         case RendererType.CANVAS:
@@ -280,8 +276,9 @@ export class LineChartComponent implements OnChanges, OnDestroy {
             container: this.canvas.nativeElement,
             devicePixelRatio: window.devicePixelRatio,
             callbacks,
-
             domRect,
+            xScaleType: this.xScaleType,
+            yScaleType: this.yScaleType,
           };
           break;
       }
@@ -290,7 +287,10 @@ export class LineChartComponent implements OnChanges, OnDestroy {
         return;
       }
 
-      const klass = this.useWorkerIfCanvas ? WorkerLayer : Layer;
+      const klass =
+        this.forceUseWorkerIfCanvas || isOffscreenCanvasSupported()
+          ? WorkerLayer
+          : Layer;
       this.lineChart = new klass(this.id, params, [
         [{type: ViewType.SERIES_LINE_VIEW, children: []}],
       ]);
@@ -315,7 +315,7 @@ export class LineChartComponent implements OnChanges, OnDestroy {
   }
 
   private getDomRect(): Rect {
-    switch (this.rendererType) {
+    switch (this.preferredRendererType) {
       case RendererType.SVG:
         return {
           x: 0,
@@ -332,7 +332,9 @@ export class LineChartComponent implements OnChanges, OnDestroy {
           height: this.canvas.nativeElement.clientHeight,
         };
       default:
-        throw new Error(`Unsupported rendererType: ${this.rendererType}`);
+        throw new Error(
+          `Unsupported rendererType: ${this.preferredRendererType}`
+        );
     }
   }
 

@@ -6,18 +6,20 @@ import {RootLayout} from './root_layout';
 import {
   DataSeriesMetadataMap,
   DataSeries,
-  Rect,
   DataExtent,
-  VisibilityMap,
-  RendererType,
-  LayerOption,
   LayerCallbacks,
+  LayerOption,
   LayoutChildren,
+  Rect,
+  RendererType,
+  ScaleType,
+  VisibilityMap,
 } from './types';
-import {ILayer} from './layer_types';
 import {THREECoordinator, Coordinator} from './coordinator';
-import {SeriesLineView} from './series_line_view';
+import {ILayer} from './layer_types';
 import {createRootLayout} from './layout_util';
+import {SeriesLineView} from './series_line_view';
+import {Scale, createScale} from './scale';
 
 export class Layer implements ILayer {
   private readonly renderer: Renderer;
@@ -60,6 +62,9 @@ export class Layer implements ILayer {
       }
     }
 
+    this.setXScaleType(option.xScaleType);
+    this.setYScaleType(option.yScaleType);
+
     const layoutConfig = {
       container: option.container,
       renderer: this.renderer,
@@ -72,6 +77,14 @@ export class Layer implements ILayer {
 
     this.resize(option.domRect);
     this.animate();
+  }
+
+  setXScaleType(type: ScaleType) {
+    this.coordinator.setXScale(createScale(type));
+  }
+
+  setYScaleType(type: ScaleType) {
+    this.coordinator.setYScale(createScale(type));
   }
 
   resize(rect: Rect) {

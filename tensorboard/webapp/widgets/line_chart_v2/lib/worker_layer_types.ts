@@ -1,11 +1,12 @@
 import {
   ChartExportedLayouts,
-  RendererType,
   DataExtent,
   DataSeriesMetadataMap,
-  Rect,
-  ViewExtent,
   LayoutChildren,
+  Rect,
+  RendererType,
+  ScaleType,
+  ViewExtent,
 } from './types';
 
 export {RendererType} from './types';
@@ -13,6 +14,7 @@ export {RendererType} from './types';
 export enum MainToGuestEvent {
   SERIES_DATA_UPDATE,
   SERIES_METADATA_CHANGED,
+  SCALE_UPDATE,
   UPDATE_VIEW_BOX,
   INIT,
   RESIZE,
@@ -27,6 +29,8 @@ export interface InitMessage {
   // Cannot support SVG in the offscreen.
   rendererType: RendererType.WEBGL | RendererType.CANVAS;
   layouts: LayoutChildren;
+  xScaleType: ScaleType;
+  yScaleType: ScaleType;
 }
 
 export interface UpdateMessage {
@@ -56,9 +60,16 @@ export interface SeriesMetadataChangedeMessage {
   metadata: SeriesMetadataMap;
 }
 
+export interface ScaleUpdateMessage {
+  type: MainToGuestEvent.SCALE_UPDATE;
+  axis: 'x' | 'y';
+  scaleType: ScaleType;
+}
+
 export type MainToGuestMessage =
   | UpdateMessage
   | ResizeMessage
+  | ScaleUpdateMessage
   | SeriesUpdateMessage
   | SeriesMetadataChangedeMessage;
 
