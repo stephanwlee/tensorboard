@@ -1,16 +1,9 @@
 import {scaleLinear, scaleLog} from 'd3-scale';
-import * as tf from '@tensorflow/tfjs';
 
 import {Rect, Extent, ScaleType} from './types';
 
 export interface Scale {
   forward(domain: [number, number], range: [number, number], x: number): number;
-
-  forwardBatch(
-    domain: [number, number],
-    range: [number, number],
-    xs: ArrayLike<number>
-  ): Promise<Float32Array>;
 
   invert(domain: [number, number], range: [number, number], x: number): number;
 
@@ -49,24 +42,6 @@ export class LinearScale implements Scale {
     const rangeSpread = rangeMax - rangeMin;
 
     return (rangeSpread / domainSpread) * (x - domainMin) + rangeMin;
-  }
-
-  forwardBatch(
-    domain: [number, number],
-    range: [number, number],
-    xs: ArrayLike<number>
-  ): Promise<Float32Array> {
-    const [domainMin, domainMax] = domain;
-    const domainSpread = domainMax - domainMin;
-    const [rangeMin, rangeMax] = range;
-    const rangeSpread = rangeMax - rangeMin;
-
-    return tf
-      .tensor(xs)
-      .sub(tf.scalar(domainMin))
-      .mul(tf.scalar(rangeSpread / domainSpread))
-      .add(tf.scalar(rangeMin))
-      .data() as Promise<Float32Array>;
   }
 
   invert(domain: [number, number], range: [number, number], x: number): number {
@@ -120,28 +95,6 @@ export class Log10Scale implements Scale {
     return (
       (rangeSpread / (domainSpread + Number.EPSILON)) * (x - transformedMin) +
       rangeMin
-    );
-  }
-
-  forwardBatch(
-    domain: [number, number],
-    range: [number, number],
-    xs: Float32Array
-  ): Promise<Float32Array> {
-    const [domainMin, domainMax] = domain;
-    const [rangeMin, rangeMax] = range;
-
-    const transformedMin = this.transform(domainMin);
-    const transformedMax = this.transform(domainMax);
-    const domainSpread = transformedMax - transformedMin;
-    const rangeSpread = rangeMax - rangeMin;
-    const x = this.transform(xs[0]);
-
-    return Promise.resolve(
-      new Float32Array([
-        (rangeSpread / (domainSpread + Number.EPSILON)) * (x - transformedMin) +
-          rangeMin,
-      ])
     );
   }
 

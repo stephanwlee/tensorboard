@@ -14,14 +14,12 @@ export interface TextSpec {
   verticalAlign: TextAlign;
 }
 
-export interface Renderer {
+export interface IRenderer {
   onResize(rect: Rect): void;
-  resetRect(rect: Rect): void;
   drawLine(id: string, paths: Paths, spec: LineSpec): void;
   drawText(id: string, text: string, spec: TextSpec): void;
   drawRect(id: string, rect: Rect, color: string): void;
   render(): void;
-  clearForTesting(): void;
   renderGroup(groupName: string, renderBlock: () => void): void;
 }
 

@@ -36,17 +36,6 @@ function createPortHandler(port: MessagePort, initMessage: InitMessage) {
 
   let layerOption: LayerOption;
   switch (rendererType) {
-    case RendererType.CANVAS:
-      layerOption = {
-        type: RendererType.CANVAS,
-        domRect: rect,
-        container: canvas,
-        devicePixelRatio,
-        callbacks: lineChartCallbacks,
-        xScaleType,
-        yScaleType,
-      };
-      break;
     case RendererType.WEBGL:
       layerOption = {
         type: RendererType.WEBGL,

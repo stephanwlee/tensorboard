@@ -12,14 +12,11 @@ export class RootLayout extends LayoutRect {
   }
 
   async redraw() {
-    const rescaleP = [];
     for (const content of this.getAllDescendents()) {
       if (content instanceof DataDrawable) {
-        rescaleP.push(content.internalOnlyTransformCoordinatesIfStale());
+        content.internalOnlyTransformCoordinatesIfStale();
       }
     }
-
-    await Promise.all(rescaleP);
 
     for (const content of this.getAllDescendents()) {
       if (content instanceof Drawable) {

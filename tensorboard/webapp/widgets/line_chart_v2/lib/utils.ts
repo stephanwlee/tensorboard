@@ -1,5 +1,6 @@
 const cachedIsWebGl2Supported = Boolean(
-  document.createElement('canvas').getContext('webgl2')
+  self.hasOwnProperty('document') &&
+    document.createElement('canvas').getContext('webgl2')
 );
 
 export function isWebGl2Supported(): boolean {
@@ -7,5 +8,5 @@ export function isWebGl2Supported(): boolean {
 }
 
 export function isOffscreenCanvasSupported(): boolean {
-  return window.hasOwnProperty('OffscreenCanvas');
+  return false && self.hasOwnProperty('OffscreenCanvas');
 }

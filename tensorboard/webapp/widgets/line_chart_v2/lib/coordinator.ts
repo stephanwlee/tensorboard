@@ -92,36 +92,6 @@ export class Coordinator {
     ];
   }
 
-  async getViewCoordinateBatch(
-    rectInUiCoordinate: Rect,
-    data: {
-      xs: ArrayLike<number>;
-      ys: ArrayLike<number>;
-    }
-  ): Promise<{
-    xs: ArrayLike<number>;
-    ys: ArrayLike<number>;
-  }> {
-    const rect = rectInUiCoordinate;
-    const domain = convertRectToExtent(this.currentViewportRect);
-    const convertedXsP = this.xScale.forwardBatch(
-      domain.x,
-      [rect.x, rect.x + rect.width],
-      data.xs
-    );
-    const convertedYsP = this.yScale.forwardBatch(
-      domain.y,
-      [rect.y + rect.height, rect.y],
-      data.ys
-    );
-
-    const [convertedXs, convertedYs] = await Promise.all([convertedXsP, convertedYsP]);
-    return {
-      xs: convertedXs,
-      ys: convertedYs,
-    };
-  }
-
   /**
    * Converts size in browser pixel to the native coordinate dimensions.
    */

@@ -315,7 +315,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   ngOnChanges() {
-    this.updateCursoredDataAndTooltipVisibility();
+    // this.updateCursoredDataAndTooltipVisibility();
   }
 
   ngOnDestroy() {
@@ -329,7 +329,7 @@ export class LineChartInteractiveLayerComponent
 
   private updateTooltip(event: MouseEvent) {
     this.cursorXLocation = this.getDataX(event.offsetX);
-    this.updateCursoredDataAndTooltipVisibility();
+    // this.updateCursoredDataAndTooltipVisibility();
   }
 
   private proposeViewExtentOnZoom(

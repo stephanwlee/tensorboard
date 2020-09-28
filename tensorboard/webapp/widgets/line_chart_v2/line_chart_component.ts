@@ -3,12 +3,12 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
-  HostBinding,
   Input,
   SimpleChanges,
   ViewChild,
   OnChanges,
   OnDestroy,
+  AfterViewInit,
 } from '@angular/core';
 
 import {
@@ -28,7 +28,7 @@ import {Layer} from './lib/layer';
 import {WorkerLayer} from './lib/worker_layer';
 import {Scale, createScale} from './lib/scale';
 import {ILayer} from './lib/layer_types';
-import {isWebGl2Supported, isOffscreenCanvasSupported} from './utils';
+import {isWebGl2Supported, isOffscreenCanvasSupported} from './lib/utils';
 
 let instId = 0;
 
@@ -66,8 +66,11 @@ interface ResizeObserverEntry {
           [xGridCount]="10"
           [yGridCount]="6"
         ></line-chart-grid-view>
-        <svg #svg></svg>
-        <canvas #canvas></canvas>
+        <svg #renderArea *ngIf="getRendererType() === RendererType.SVG"></svg>
+        <canvas
+          #renderArea
+          *ngIf="getRendererType() === RendererType.WEBGL"
+        ></canvas>
         <line-chart-interactive-layer
           [data]="data"
           [visibleSeries]="visibleSeries"
@@ -120,14 +123,6 @@ interface ResizeObserverEntry {
         overflow: hidden;
       }
 
-      :host[renderer-type='svg'] canvas {
-        display: none;
-      }
-
-      :host:not([renderer-type='svg']) svg {
-        display: none;
-      }
-
       canvas,
       svg,
       line-chart-grid-view,
@@ -150,14 +145,12 @@ interface ResizeObserverEntry {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LineChartComponent implements OnChanges, OnDestroy {
-  @ViewChild('svg', {static: true, read: ElementRef})
-  private readonly svg!: ElementRef<SVGElement>;
+export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
+  readonly RendererType = RendererType;
 
-  @ViewChild('canvas', {static: true, read: ElementRef})
-  private readonly canvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('renderArea', {static: false, read: ElementRef})
+  private renderArea?: ElementRef<HTMLCanvasElement | SVGElement>;
 
-  @HostBinding('attr.renderer-type')
   @Input()
   readonly preferredRendererType: RendererType = isWebGl2Supported()
     ? RendererType.WEBGL
@@ -218,7 +211,11 @@ export class LineChartComponent implements OnChanges, OnDestroy {
           if (!entry.contentRect) {
             return;
           }
-          this.lineChart.resize(this.getDomRect());
+          const rect = this.getDomRect();
+          if (!rect) {
+            return;
+          }
+          this.lineChart.resize(rect);
         }
       }
     );
@@ -233,67 +230,9 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     if (changes['xScaleType']) {
       this.xScale = createScale(this.xScaleType);
     }
+
     if (changes['yScaleType']) {
       this.yScale = createScale(this.yScaleType);
-    }
-
-    if (!this.lineChart) {
-      const callbacks: LayerCallbacks = {
-        onLayout: (layouts) => {
-          this.chartLayout = layouts;
-          this.changeDetector.detectChanges();
-        },
-      };
-
-      let params: LayerOption | null = null;
-      const domRect = this.getDomRect();
-      switch (this.preferredRendererType) {
-        case RendererType.SVG:
-          params = {
-            type: RendererType.SVG,
-            container: this.svg.nativeElement,
-            callbacks,
-            domRect,
-            xScaleType: this.xScaleType,
-            yScaleType: this.yScaleType,
-          };
-          this.svg.nativeElement;
-          break;
-        case RendererType.WEBGL:
-          params = {
-            type: RendererType.WEBGL,
-            container: this.canvas.nativeElement,
-            devicePixelRatio: window.devicePixelRatio,
-            callbacks,
-            domRect,
-            xScaleType: this.xScaleType,
-            yScaleType: this.yScaleType,
-          };
-          break;
-        case RendererType.CANVAS:
-          params = {
-            type: RendererType.CANVAS,
-            container: this.canvas.nativeElement,
-            devicePixelRatio: window.devicePixelRatio,
-            callbacks,
-            domRect,
-            xScaleType: this.xScaleType,
-            yScaleType: this.yScaleType,
-          };
-          break;
-      }
-
-      if (!params) {
-        return;
-      }
-
-      const klass =
-        this.forceUseWorkerIfCanvas || isOffscreenCanvasSupported()
-          ? WorkerLayer
-          : Layer;
-      this.lineChart = new klass(this.id, params, [
-        [{type: ViewType.SERIES_LINE_VIEW, children: []}],
-      ]);
     }
 
     if (changes['data']) {
@@ -314,22 +253,103 @@ export class LineChartComponent implements OnChanges, OnDestroy {
     this.updateProp();
   }
 
-  private getDomRect(): Rect {
+  ngAfterViewInit() {
+    this.initializeChart();
+    this.updateProp();
+  }
+
+  private initializeChart() {
+    if (this.lineChart) {
+      return;
+    }
+
+    const rendererType = this.getRendererType();
+    const callbacks: LayerCallbacks = {
+      onLayout: (layouts) => {
+        this.chartLayout = layouts;
+        this.changeDetector.detectChanges();
+      },
+    };
+
+    let params: LayerOption | null = null;
+    const domRect = this.getDomRect();
+
+    if (!domRect) {
+      return;
+    }
+
+    switch (rendererType) {
+      case RendererType.SVG: {
+        params = {
+          type: RendererType.SVG,
+          container: this.renderArea!.nativeElement as SVGElement,
+          callbacks,
+          domRect,
+          xScaleType: this.xScaleType,
+          yScaleType: this.yScaleType,
+        };
+        break;
+      }
+      case RendererType.WEBGL:
+        params = {
+          type: RendererType.WEBGL,
+          container: this.renderArea!.nativeElement as HTMLCanvasElement,
+          devicePixelRatio: window.devicePixelRatio,
+          callbacks,
+          domRect,
+          xScaleType: this.xScaleType,
+          yScaleType: this.yScaleType,
+        };
+        break;
+    }
+
+    if (!params) {
+      return;
+    }
+
+    const useWorker =
+      rendererType !== RendererType.SVG &&
+      (this.forceUseWorkerIfCanvas || isOffscreenCanvasSupported());
+    const klass = useWorker ? WorkerLayer : Layer;
+    this.lineChart = new klass(this.id, params, [
+      [{type: ViewType.SERIES_LINE_VIEW, children: []}],
+    ]);
+  }
+
+  getRendererType(): RendererType {
+    switch (this.preferredRendererType) {
+      case RendererType.SVG:
+        return RendererType.SVG;
+      case RendererType.WEBGL:
+        if (isWebGl2Supported()) {
+          return RendererType.WEBGL;
+        }
+        return RendererType.SVG;
+      default:
+        throw new Error(
+          `Invariant Error: Unknown rendererType: ${this.preferredRendererType}`
+        );
+    }
+  }
+
+  private getDomRect(): Rect | null {
+    if (!this.renderArea) {
+      return null;
+    }
     switch (this.preferredRendererType) {
       case RendererType.SVG:
         return {
           x: 0,
           y: 0,
-          width: this.svg.nativeElement.clientWidth,
-          height: this.svg.nativeElement.clientHeight,
+          width: this.renderArea.nativeElement.clientWidth,
+          height: this.renderArea.nativeElement.clientHeight,
         };
       case RendererType.WEBGL:
-      case RendererType.CANVAS:
         return {
           x: 0,
           y: 0,
-          width: this.canvas.nativeElement.clientWidth,
-          height: this.canvas.nativeElement.clientHeight,
+          width: this.renderArea.nativeElement.clientWidth,
+          height: this.renderArea.nativeElement.clientHeight,
         };
       default:
         throw new Error(

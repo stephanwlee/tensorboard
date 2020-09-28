@@ -27,7 +27,7 @@ export interface InitMessage {
   devicePixelRatio: number;
   rect: Rect;
   // Cannot support SVG in the offscreen.
-  rendererType: RendererType.WEBGL | RendererType.CANVAS;
+  rendererType: RendererType.WEBGL;
   layouts: LayoutChildren;
   xScaleType: ScaleType;
   yScaleType: ScaleType;

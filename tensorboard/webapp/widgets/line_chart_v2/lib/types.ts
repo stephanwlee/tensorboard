@@ -46,7 +46,6 @@ export type VisibilityMap = Map<SeriesId, boolean>;
 
 export enum RendererType {
   SVG,
-  CANVAS,
   WEBGL,
 }
 
@@ -72,19 +71,13 @@ export interface SvgLayerOption extends BaseLayerOption {
   container: SVGElement;
 }
 
-export interface CanvasLayerOption extends BaseLayerOption {
-  type: RendererType.CANVAS;
-  devicePixelRatio: number;
-  container: OffscreenCanvas | HTMLCanvasElement;
-}
-
 export interface WebGlLayerOption extends BaseLayerOption {
   type: RendererType.WEBGL;
   devicePixelRatio: number;
   container: OffscreenCanvas | HTMLCanvasElement;
 }
 
-export type LayerOption = SvgLayerOption | CanvasLayerOption | WebGlLayerOption;
+export type LayerOption = SvgLayerOption | WebGlLayerOption;
 
 export enum ViewType {
   Y_AXIS_VIEW,

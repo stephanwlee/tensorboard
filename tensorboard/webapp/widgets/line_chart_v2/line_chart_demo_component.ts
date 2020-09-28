@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {DataExtent, DataSeries, ScaleType} from './lib/types';
+import {DataSeries, ScaleType} from './lib/types';
 import {createDataSeries} from './create_data';
 
-const NUM_SERIES = 1000;
+const NUM_SERIES = 5;
 const NUM_POINTS = 1000;
 
 const COLORS = [

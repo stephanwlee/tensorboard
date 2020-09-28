@@ -2,8 +2,9 @@ import * as THREE from 'three';
 
 import {THREECoordinator} from './coordinator';
 import {Roboto} from './fonts/roboto';
-import {LineSpec, Renderer, TextAlign, TextSpec} from './renderer_types';
+import {LineSpec, IRenderer, TextAlign, TextSpec} from './renderer_types';
 import {Paths, Rect} from './types';
+import {isOffscreenCanvasSupported} from './utils';
 
 function arePathsEqual(pathA: Paths, pathB: Paths) {
   if (pathA.length !== pathB.length) {
@@ -18,21 +19,78 @@ function arePathsEqual(pathA: Paths, pathB: Paths) {
   return true;
 }
 
-export class SvgRenderer implements Renderer {
-  private idToPath = new Map<string, SVGPathElement>();
-  private idToPaths = new Map<string, Paths>();
+type RenderGroupMap<Cacheable, DataType> = Map<
+  string,
+  {
+    data: DataType;
+    cacheable: Cacheable;
+  }
+>;
 
-  constructor(private readonly svg: SVGElement) {}
+abstract class Renderer<Cacheable, DataType> implements IRenderer {
+  abstract onResize(rect: Rect): void;
+
+  drawLine(cacheId: string, paths: Float32Array, spec: LineSpec): void {
+    this.cacheIdsToRemove.delete(cacheId);
+  }
+  drawText(cacheId: string, text: string, spec: TextSpec): void {
+    this.cacheIdsToRemove.delete(cacheId);
+  }
+
+  drawRect(cacheId: string, rect: Rect, color: string): void {
+    this.cacheIdsToRemove.delete(cacheId);
+  }
+
+  abstract render(): void;
+
+  private groupToCacheIdToCacheable = new Map<
+    string,
+    RenderGroupMap<Cacheable, DataType>
+  >();
+  protected currentRenderGroup: RenderGroupMap<
+    Cacheable,
+    DataType
+  > | null = null;
+  protected cacheIdsToRemove = new Set<string>();
+
+  abstract removeCacheable(cacheable: Cacheable): void;
+
+  renderGroup(groupName: string, renderBlock: () => void) {
+    this.currentRenderGroup =
+      this.groupToCacheIdToCacheable.get(groupName) ?? new Map();
+    this.groupToCacheIdToCacheable.set(groupName, this.currentRenderGroup);
+    this.cacheIdsToRemove.clear();
+
+    for (const cacheKey of this.currentRenderGroup.keys()) {
+      this.cacheIdsToRemove.add(cacheKey);
+    }
+
+    renderBlock();
+
+    for (const cacheKey of this.cacheIdsToRemove.values()) {
+      const {cacheable} = this.currentRenderGroup.get(cacheKey)!;
+      this.removeCacheable(cacheable);
+      this.currentRenderGroup.delete(cacheKey);
+    }
+
+    this.currentRenderGroup = null;
+  }
+}
+
+export class SvgRenderer extends Renderer<SVGPathElement, Paths> {
+  constructor(private readonly svg: SVGElement) {
+    super();
+  }
+
+  removeCacheable(cacheable: SVGPathElement): void {
+    this.svg.removeChild(cacheable);
+  }
 
   onResize(rect: Rect) {}
 
-  resetRect(rect: Rect) {}
-
-  drawRect(id: string, rect: Rect, color: string): void {}
-
-  clearForTesting() {}
-
-  renderGroup(groupName: string, renderBlock: () => void) {}
+  drawRect(cacheId: string, rect: Rect, color: string): void {
+    throw new Error('Method not implemented.');
+  }
 
   private createPathDString(paths: Paths): string {
     if (!paths.length) {
@@ -47,24 +105,29 @@ export class SvgRenderer implements Renderer {
     return dBuilder.join('');
   }
 
-  drawLine(id: string, paths: Paths, {color, visible, width}: LineSpec) {
-    if (paths.length < 2) {
+  drawLine(id: string, paths: Paths, spec: LineSpec) {
+    super.drawLine(id, paths, spec);
+
+    if (paths.length < 2 || !this.currentRenderGroup) {
       return;
     }
 
-    const cachedPaths = this.idToPaths.get(id);
-    let path = this.idToPath.get(id);
+    const {color, visible, width} = spec;
+
+    const cache = this.currentRenderGroup.get(id);
+    let path = cache?.cacheable;
 
     if (!path) {
       path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.style.fill = 'none';
-      this.idToPath.set(id, path);
+      this.svg.appendChild(path);
+      this.currentRenderGroup.set(id, {cacheable: path, data: paths});
     }
 
-    if (!cachedPaths || !arePathsEqual(paths, cachedPaths)) {
-      path.setAttribute('d', this.createPathDString(paths));
-      this.idToPaths.set(id, paths);
-      this.svg.appendChild(path);
+    if (!cache?.data || !arePathsEqual(paths, cache?.data)) {
+      const data = this.createPathDString(paths);
+      path.setAttribute('d', data);
+      this.currentRenderGroup.set(id, {cacheable: path, data: paths});
     }
 
     path.style.display = visible ? '' : 'none';
@@ -79,88 +142,28 @@ export class SvgRenderer implements Renderer {
   render() {}
 }
 
-export class Canvas2dRenderer implements Renderer {
-  private readonly context:
-    | CanvasRenderingContext2D
-    | OffscreenCanvasRenderingContext2D;
-  constructor(
-    private readonly canvas: HTMLCanvasElement | OffscreenCanvas,
-    private readonly devicePixelRatio: number
-  ) {
-    this.context = canvas.getContext('2d', {
-      alpha: false,
-    })!;
+function areVectorsSame(
+  vectorsA: THREE.Vector2[],
+  vectorsB: THREE.Vector2[]
+): boolean {
+  if (vectorsA.length !== vectorsB.length) {
+    return false;
   }
 
-  onResize(rect: Rect) {
-    this.canvas.width = rect.width * this.devicePixelRatio;
-    this.canvas.height = rect.height * this.devicePixelRatio;
-    this.context.scale(this.devicePixelRatio, this.devicePixelRatio);
-  }
-
-  resetRect(rect: Rect) {
-    this.context.fillStyle = '#fff';
-    this.context.fillRect(rect.x, rect.y, rect.width, rect.height);
-  }
-
-  drawRect(id: string, rect: Rect, color: string): void {}
-
-  clearForTesting() {
-    this.resetRect({x: 0, y: 0, width: 1000, height: 1000});
-    if ((self as any).gc) {
-      (self as any).gc();
+  for (let index = 0; index < vectorsA.length; index++) {
+    if (
+      vectorsA[index].x !== vectorsB[index].x ||
+      vectorsA[index].y !== vectorsB[index].y
+    ) {
+      return false;
     }
   }
-
-  renderGroup(groupName: string, renderBlock: () => void) {}
-
-  drawLine(id: string, paths: Paths, {color, width, visible}: LineSpec) {
-    if (paths.length < 2 || !visible) {
-      return;
-    }
-
-    const ctx = this.context;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(paths[0], paths[1]);
-    for (let i = 2; i < paths.length; i += 2) {
-      ctx.lineTo(paths[i], paths[i + 1]);
-    }
-    ctx.lineWidth = width;
-    ctx.strokeStyle = color;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  drawText(id: string, text: string, spec: TextSpec): void {
-    throw new Error('Method not implemented.');
-  }
-
-  render() {}
+  return true;
 }
 
-export class Canvas3dRenderer implements Renderer {
+export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly idsToRemove = new Set<string>();
-  private readonly groupToCacheIdToThreeObject = new Map<
-    string,
-    Map<
-      string,
-      {
-        data: any;
-        object: THREE.Object3D;
-      }
-    >
-  >();
-  private currentRenderGroup: Map<
-    string,
-    {
-      data: any;
-      object: THREE.Object3D;
-    }
-  > | null = null;
-
   private readonly font = new THREE.FontLoader().parse(Roboto);
 
   constructor(
@@ -168,7 +171,9 @@ export class Canvas3dRenderer implements Renderer {
     private readonly coordinator: THREECoordinator,
     devicePixelRatio: number
   ) {
-    if (canvas instanceof OffscreenCanvas) {
+    super();
+
+    if (isOffscreenCanvasSupported() && canvas instanceof OffscreenCanvas) {
       // THREE.js require the style object which Offscreen canvas lacks.
       (canvas as any).style = (canvas as any).style || {};
     }
@@ -187,17 +192,30 @@ export class Canvas3dRenderer implements Renderer {
     this.renderer.setSize(rect.width, rect.height);
   }
 
-  resetRect(rect: Rect) {}
+  removeCacheable(cacheable: THREE.Object3D): void {
+    this.scene.remove(cacheable);
 
-  drawRect(id: string, rect: Rect, color: string): void {
+    if (cacheable instanceof THREE.Mesh || cacheable instanceof THREE.Line) {
+      cacheable.geometry.dispose();
+      const materials = Array.isArray(cacheable.material)
+        ? cacheable.material
+        : [cacheable.material];
+      for (const material of materials) {
+        material.dispose();
+      }
+    }
+  }
+
+  drawRect(cacheId: string, rect: Rect, color: string): void {
+    super.drawRect(cacheId, rect, color);
+
     if (!this.currentRenderGroup) return;
-    this.idsToRemove.delete(id);
 
-    const cache = this.currentRenderGroup.get(id);
+    const cache = this.currentRenderGroup.get(cacheId);
     let mesh: THREE.Mesh | null = null;
 
-    if (cache && cache.object instanceof THREE.Mesh) {
-      mesh = cache.object;
+    if (cache && cache.cacheable instanceof THREE.Mesh) {
+      mesh = cache.cacheable;
     } else if (!cache) {
       const geometry = new THREE.BoxBufferGeometry(rect.width, rect.height, 1);
       const material = new THREE.MeshBasicMaterial({
@@ -205,7 +223,7 @@ export class Canvas3dRenderer implements Renderer {
         side: THREE.FrontSide,
       });
       mesh = new THREE.Mesh(geometry, material);
-      this.currentRenderGroup.set(id, {data: null, object: mesh});
+      this.currentRenderGroup.set(cacheId, {data: null, cacheable: mesh});
       this.scene.add(mesh);
     }
 
@@ -232,84 +250,19 @@ export class Canvas3dRenderer implements Renderer {
     mesh.position.y = rect.y + rect.height / 2;
   }
 
-  /**
-   * When trying to simulate initial render, we need to remove and re-create all
-   * objects in the scene. Doing that in the re-render will cause large GC and
-   * increased GPU memory usage.
-   */
-  clearForTesting() {
-    this.groupToCacheIdToThreeObject.clear();
-    while (this.scene.children.length) {
-      this.scene.remove(this.scene.children[0]);
-    }
+  drawLine(id: string, paths: Paths, spec: LineSpec) {
+    super.drawLine(id, paths, spec);
 
-    if ((self as any).gc) {
-      (self as any).gc();
-    }
-  }
-
-  renderGroup(groupName: string, renderBlock: () => void) {
-    this.currentRenderGroup =
-      this.groupToCacheIdToThreeObject.get(groupName) ?? new Map();
-    this.groupToCacheIdToThreeObject.set(groupName, this.currentRenderGroup);
-    this.idsToRemove.clear();
-
-    for (const cacheKey of this.currentRenderGroup.keys()) {
-      this.idsToRemove.add(cacheKey);
-    }
-
-    renderBlock();
-
-    for (const cacheKey of this.idsToRemove.values()) {
-      const {object} = this.currentRenderGroup.get(cacheKey)!;
-      this.currentRenderGroup.delete(cacheKey);
-      this.scene.remove(object);
-
-      if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
-        object.geometry.dispose();
-        const materials = Array.isArray(object.material)
-          ? object.material
-          : [object.material];
-        for (const material of materials) {
-          material.dispose();
-        }
-      }
-    }
-
-    this.currentRenderGroup = null;
-  }
-
-  private areVectorsSame(
-    vectorsA: THREE.Vector2[],
-    vectorsB: THREE.Vector2[]
-  ): boolean {
-    if (vectorsA.length !== vectorsB.length) {
-      return false;
-    }
-
-    for (let index = 0; index < vectorsA.length; index++) {
-      if (
-        vectorsA[index].x !== vectorsB[index].x ||
-        vectorsA[index].y !== vectorsB[index].y
-      ) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  drawLine(id: string, paths: Paths, {visible, color, width}: LineSpec) {
-    if (!paths.length) {
+    if (!paths.length || !this.currentRenderGroup) {
       return;
     }
 
-    if (!this.currentRenderGroup) return;
-    this.idsToRemove.delete(id);
+    const {visible, color, width} = spec;
 
     const cache = this.currentRenderGroup.get(id);
     let line: THREE.Line | null = null;
-    if (cache && cache.object instanceof THREE.Line) {
-      line = cache.object;
+    if (cache && cache.cacheable instanceof THREE.Line) {
+      line = cache.cacheable;
     }
     const prevVectors: THREE.Vector2[] | null = cache ? cache.data : null;
 
@@ -354,11 +307,11 @@ export class Canvas3dRenderer implements Renderer {
         material.needsUpdate = true;
       }
 
-      if (!prevVectors || !this.areVectorsSame(prevVectors, vectors)) {
+      if (!prevVectors || !areVectorsSame(prevVectors, vectors)) {
         this.updatePoints(line.geometry as THREE.BufferGeometry, vectors);
         this.currentRenderGroup.set(id, {
           data: vectors,
-          object: line,
+          cacheable: line,
         });
       }
     } else {
@@ -370,7 +323,7 @@ export class Canvas3dRenderer implements Renderer {
       line = new THREE.Line(geometry, material);
       this.currentRenderGroup.set(id, {
         data: vectors,
-        object: line,
+        cacheable: line,
       });
       this.scene.add(line);
 
@@ -400,8 +353,9 @@ export class Canvas3dRenderer implements Renderer {
   }
 
   drawText(id: string, text: string, spec: TextSpec): void {
+    super.drawText(id, text, spec);
+
     if (!this.currentRenderGroup) return;
-    this.idsToRemove.delete(id);
 
     const cache = this.currentRenderGroup.get(id);
 
@@ -415,8 +369,8 @@ export class Canvas3dRenderer implements Renderer {
       curveSegments: 10,
     };
 
-    if (cache && cache.object instanceof THREE.Mesh) {
-      mesh = cache.object;
+    if (cache && cache.cacheable instanceof THREE.Mesh) {
+      mesh = cache.cacheable;
       (mesh.material as THREE.MeshBasicMaterial).color.set(spec.color);
       const prevData = cache.data as {
         text: string;
@@ -439,7 +393,7 @@ export class Canvas3dRenderer implements Renderer {
       this.scene.add(mesh);
       this.currentRenderGroup.set(id, {
         data: {text, size: spec.size},
-        object: mesh,
+        cacheable: mesh,
       });
     }
 

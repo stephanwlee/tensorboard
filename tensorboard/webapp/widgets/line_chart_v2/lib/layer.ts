@@ -1,7 +1,7 @@
 import {XAxisView, YAxisView} from './axis_view';
 import {ColorProvider} from './color_provider';
-import {Canvas2dRenderer, Canvas3dRenderer, SvgRenderer} from './renderer';
-import {Renderer} from './renderer_types';
+import {Canvas3dRenderer, SvgRenderer} from './renderer';
+import {IRenderer} from './renderer_types';
 import {RootLayout} from './root_layout';
 import {
   DataSeriesMetadataMap,
@@ -22,7 +22,7 @@ import {SeriesLineView} from './series_line_view';
 import {Scale, createScale} from './scale';
 
 export class Layer implements ILayer {
-  private readonly renderer: Renderer;
+  private readonly renderer: IRenderer;
   private readonly root: RootLayout;
   private readonly coordinator: Coordinator;
   private readonly colorProivder = new ColorProvider();
@@ -40,14 +40,6 @@ export class Layer implements ILayer {
       case RendererType.SVG: {
         this.coordinator = new Coordinator();
         this.renderer = new SvgRenderer(option.container);
-        break;
-      }
-      case RendererType.CANVAS: {
-        this.coordinator = new Coordinator();
-        this.renderer = new Canvas2dRenderer(
-          option.container,
-          option.devicePixelRatio
-        );
         break;
       }
       case RendererType.WEBGL: {

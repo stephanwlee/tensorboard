@@ -33,6 +33,7 @@ tf_ts_library(
         "coordinator.ts",
         "renderer.ts",
         "renderer_types.ts",
+        "utils.ts",
     ],
     deps = [
         ":scale",
@@ -78,7 +79,6 @@ tf_ts_library(
     ],
     deps = [
         ":types",
-        "@npm//@tensorflow/tfjs",
         "@npm//@types/d3-scale",
         "@npm//d3-scale",
     ],
