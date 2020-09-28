@@ -71,13 +71,15 @@ export abstract class DataDrawable extends Drawable {
     this.rawSeriesData = data;
   }
 
-  internalOnlyTransformCoordinatesIfStale(): void {
+  async internalOnlyTransformCoordinatesIfStale(): Promise<void> {
     if (!this.isCoordinateUpdated()) {
       return;
     }
 
     const layoutRect = this.getLayoutRect();
     this.series = new Array(this.rawSeriesData.length);
+
+    console.time('before');
     for (let i = 0; i < this.rawSeriesData.length; i++) {
       const datum = this.rawSeriesData[i];
       this.series[i] = {
@@ -93,6 +95,49 @@ export abstract class DataDrawable extends Drawable {
         this.series[i].paths[pointIndex * 2 + 1] = y;
       }
     }
+    console.timeEnd('before');
+
+    console.time('after');
+    let seriesCount = 0;
+    for (let i = 0; i < this.rawSeriesData.length; i++) {
+      const datum = this.rawSeriesData[i];
+      // Pre-allocate the data structure
+      this.series[i] = {
+        name: datum.name,
+        paths: new Float32Array(datum.points.length * 2),
+      };
+      // Remember the length of all points so we can batch convert the coordinates.
+      seriesCount += datum.points.length;
+    }
+
+    const xs = new Float32Array(seriesCount);
+    const ys = new Float32Array(seriesCount);
+    let arrIndex = 0;
+    for (let i = 0; i < this.rawSeriesData.length; i++) {
+      const {points} = this.rawSeriesData[i];
+      for (let pointIndex = 0; pointIndex < points.length; pointIndex++) {
+        xs[arrIndex] = points[pointIndex].x;
+        ys[arrIndex] = points[pointIndex].y;
+        arrIndex++;
+      }
+    }
+
+    const {
+      xs: convertedXs,
+      ys: convertedYs,
+    } = await this.coordinator.getViewCoordinateBatch(layoutRect, {xs, ys});
+
+    arrIndex = 0;
+    for (let i = 0; i < this.series.length; i++) {
+      const {paths} = this.series[i];
+      for (let pathIndex = 0; pathIndex < paths.length; pathIndex += 2) {
+        paths[pathIndex] = convertedXs[arrIndex];
+        paths[pathIndex + 1] = convertedYs[arrIndex];
+        arrIndex++;
+      }
+    }
+
+    console.timeEnd('after');
 
     this.updateCoordinateIdentifier();
     this.markAsPaintDirty();

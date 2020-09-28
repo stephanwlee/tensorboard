@@ -16,7 +16,7 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {DataExtent, DataSeries, ScaleType} from './lib/types';
 import {createDataSeries} from './create_data';
 
-const NUM_SERIES = 2;
+const NUM_SERIES = 1000;
 const NUM_POINTS = 1000;
 
 const COLORS = [
