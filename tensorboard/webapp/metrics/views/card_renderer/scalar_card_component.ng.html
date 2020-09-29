@@ -82,7 +82,7 @@ limitations under the License.
     diameter="18"
     *ngIf="loadState === DataLoadState.LOADING"
   ></mat-spinner>
-  <tb-line-chart
+  <!-- <tb-line-chart
     [colorScale]="runColorScale"
     [seriesDataList]="seriesDataList"
     [tooltipColumns]="tooltipColumns"
@@ -95,5 +95,12 @@ limitations under the License.
     detectResize
     [resizeEventDebouncePeriodInMs]="RESIZE_REDRAW_DEBOUNCE_TIME_IN_MS"
     (onResize)="redraw()"
-  ></tb-line-chart>
+  ></tb-line-chart> -->
+
+  <line-chart
+    [colorMap]="colorMap"
+    [visibleSeries]="visibleSeries"
+    [data]="dataSeries"
+    [yScaleType]="newYAxisType"
+  ></line-chart>
 </div>

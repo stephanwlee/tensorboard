@@ -24,6 +24,7 @@ import {Store} from '@ngrx/store';
 import {DataLoadState} from '../../../types/data';
 import {combineLatest, Observable, of} from 'rxjs';
 import {
+  shareReplay,
   combineLatestWith,
   debounceTime,
   distinctUntilChanged,
@@ -40,6 +41,7 @@ import {
   getExperimentIdForRunId,
   getExperimentIdToAliasMap,
   getRun,
+  getRunColorMap,
 } from '../../../selectors';
 import {RunColorScale} from '../../../types/ui';
 import {PluginType, ScalarStepDatum} from '../../data_source';
@@ -59,6 +61,7 @@ import {getTagDisplayName} from '../utils';
 
 import {SeriesDataList, SeriesPoint} from './scalar_card_component';
 import {getDisplayNameForRun} from './utils';
+import {DataSeries} from '../../../widgets/line_chart_v2/lib/types';
 
 type ScalarCardMetadata = CardMetadata & {
   plugin: PluginType.SCALARS;
@@ -103,6 +106,9 @@ function areSeriesDataListEqual(
       [scalarSmoothing]="scalarSmoothing$ | async"
       [showFullSize]="showFullSize"
       [isPinned]="isPinned$ | async"
+      [colorMap]="colorMap$ | async"
+      [dataSeries]="dataSeries$ | async"
+      [visibleSeries]="visibleSeries$ | async"
       (onFullSizeToggle)="onFullSizeToggle()"
       (onPinClicked)="pinStateChanged.emit($event)"
     ></scalar-card-component>
@@ -132,6 +138,9 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
   tag$?: Observable<string>;
   seriesDataList$?: Observable<SeriesDataList> = of([]);
   isPinned$?: Observable<boolean>;
+  dataSeries$?: Observable<DataSeries[]>;
+  colorMap$?: Observable<Map<string, string>>;
+  visibleSeries$?: Observable<Set<string>>;
   readonly tooltipSort$ = this.store.select(getMetricsTooltipSort);
   readonly ignoreOutliers$ = this.store.select(getMetricsIgnoreOutliers);
   readonly xAxisType$ = this.store.select(getMetricsXAxisType);
@@ -219,7 +228,61 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
         });
       }),
       startWith([]),
-      distinctUntilChanged(areSeriesDataListEqual)
+      distinctUntilChanged(areSeriesDataListEqual),
+      shareReplay(1)
+    );
+
+    this.dataSeries$ = runIdAndPoints$.pipe(
+      switchMap((runIdAndPoints) => {
+        if (!runIdAndPoints.length) {
+          return of([]);
+        }
+
+        return combineLatest(
+          runIdAndPoints.map((runIdAndPoint) => {
+            return this.getRunDisplayNameAndPoints(runIdAndPoint);
+          })
+        );
+      }),
+      combineLatestWith(this.store.select(getCurrentRouteRunSelection)),
+      // When the `fetchRunsSucceeded` action fires, the run selection
+      // map and the metadata change. To prevent quick fire of changes,
+      // debounce by a microtask to emit only single change for the runs
+      // store change.
+      debounceTime(0),
+      map(([result, runSelectionMap]) => {
+        return result.map(({runId, displayName, points}) => {
+          return {
+            name: runId,
+            points,
+          };
+        });
+      }),
+      startWith([])
+    );
+
+    this.visibleSeries$ = this.store.select(getCurrentRouteRunSelection).pipe(
+      map((runSelectionMap) => {
+        const visible = new Set<string>();
+        if (runSelectionMap) {
+          for (const [run, selected] of runSelectionMap.entries()) {
+            if (selected) {
+              visible.add(run);
+            }
+          }
+        }
+        return visible;
+      })
+    );
+
+    this.colorMap$ = this.store.select(getRunColorMap).pipe(
+      map((colorObject) => {
+        const colorMap = new Map<string, string>();
+        for (const [key, value] of Object.entries(colorObject)) {
+          colorMap.set(key, value);
+        }
+        return colorMap;
+      })
     );
 
     this.loadState$ = this.store.select(getCardLoadState, this.cardId);

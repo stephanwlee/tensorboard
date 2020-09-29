@@ -39,6 +39,11 @@ import {
 } from '../../../widgets/line_chart/line_chart_types';
 import {ScalarStepDatum} from '../../data_source';
 import {TooltipSort, XAxisType} from '../../types';
+import {
+  DataSeries,
+  RendererType,
+  ScaleType,
+} from '../../../widgets/line_chart_v2/lib/types';
 
 const RESIZE_REDRAW_DEBOUNCE_TIME_IN_MS = 50;
 
@@ -103,6 +108,7 @@ const DEFAULT_TOOLTIP_COLUMNS: TooltipColumns = [
 export class ScalarCardComponent {
   readonly RESIZE_REDRAW_DEBOUNCE_TIME_IN_MS = RESIZE_REDRAW_DEBOUNCE_TIME_IN_MS;
   readonly DataLoadState = DataLoadState;
+  readonly RendererType = RendererType;
 
   @Input() loadState!: DataLoadState;
   @Input() title!: string;
@@ -123,9 +129,14 @@ export class ScalarCardComponent {
   @ViewChild(LineChartComponent)
   lineChart?: LineChartComponent<Metadata, StepDatum>;
 
+  @Input() dataSeries!: DataSeries[];
+  @Input() visibleSeries!: Set<string>;
+  @Input() colorMap!: Map<string, string>;
+
   constructor(private readonly ref: ElementRef) {}
 
   yAxisType = YAxisType.LINEAR;
+  newYAxisType = ScaleType.LINEAR;
 
   chartXAxisType() {
     switch (this.xAxisType) {
@@ -147,6 +158,8 @@ export class ScalarCardComponent {
   toggleYAxisType() {
     this.yAxisType =
       this.yAxisType === YAxisType.LINEAR ? YAxisType.LOG : YAxisType.LINEAR;
+    this.newYAxisType =
+      this.yAxisType === YAxisType.LINEAR ? ScaleType.LINEAR : ScaleType.LOG10;
   }
 
   resetDomain() {
