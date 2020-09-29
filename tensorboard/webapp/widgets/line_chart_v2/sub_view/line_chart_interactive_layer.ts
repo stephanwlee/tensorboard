@@ -189,11 +189,21 @@ export class LineChartInteractiveLayerComponent
         }
       });
 
+    fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mouseenter', {
+      passive: true,
+    })
+      .pipe(takeUntil(this.ngUnsubscribe))
+      .subscribe((event) => {
+        this.updateTooltip(event);
+        this.changeDetector.markForCheck();
+      });
+
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mouseleave', {
       passive: true,
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
+        this.tooltipDislayAttached = false;
         this.state = InteractionState.NONE;
         this.changeDetector.markForCheck();
       });

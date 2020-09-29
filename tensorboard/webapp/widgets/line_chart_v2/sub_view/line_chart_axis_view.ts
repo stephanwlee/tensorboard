@@ -50,7 +50,7 @@ export abstract class AxisView extends NgLineChartView implements OnChanges {
     domSize: number,
     tickCount: number
   ): number {
-    const guidance = Math.floor(domSize / 100);
+    const guidance = Math.floor(domSize / 75);
     return Math.min(guidance, tickCount);
   }
 
