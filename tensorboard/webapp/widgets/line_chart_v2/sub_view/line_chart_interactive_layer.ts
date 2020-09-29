@@ -128,20 +128,23 @@ export class LineChartInteractiveLayerComponent
 
   ngAfterViewInit() {
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'dblclick', {
-      passive: true,
+      passive: false,
     })
       .pipe(takeUntil(this.ngUnsubscribe))
-      .subscribe(() => {
+      .subscribe((event) => {
+        // Prevent double click from selecting text.
+        event.preventDefault();
         this.onViewExtentReset.emit();
         this.state = InteractionState.NONE;
         this.changeDetector.markForCheck();
       });
 
     fromEvent<MouseEvent>(this.dotsContainer.nativeElement, 'mousedown', {
-      passive: true,
+      passive: false,
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
+        event.preventDefault();
         this.state = event.shiftKey
           ? InteractionState.PANNING
           : InteractionState.DRAG_ZOOMING;
