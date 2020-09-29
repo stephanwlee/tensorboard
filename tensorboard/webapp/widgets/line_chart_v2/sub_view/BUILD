@@ -25,7 +25,6 @@ ng_module(
     ],
     deps = [
         "//tensorboard/webapp/angular:expect_angular_cdk_overlay",
-        "//tensorboard/webapp/widgets:resize_detector",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:scale",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:types",
         "@npm//@angular/common",

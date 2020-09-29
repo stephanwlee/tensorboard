@@ -29,6 +29,7 @@ ng_module(
         "line_chart_module.ts",
     ],
     deps = [
+        "//tensorboard/webapp/widgets:resize_detector",
         "//tensorboard/webapp/widgets/line_chart_v2/lib",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:types",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:worker_layer",

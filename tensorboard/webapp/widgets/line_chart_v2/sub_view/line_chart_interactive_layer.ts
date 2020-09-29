@@ -22,9 +22,9 @@ import {bisect} from 'd3-array';
 import {Subject, fromEvent, of, timer} from 'rxjs';
 import {filter, map, switchMap, takeUntil, tap} from 'rxjs/operators';
 
-import {NgLineChartView} from './ng_line_chart_view';
+import {DomDimension, NgLineChartView} from './ng_line_chart_view';
 import {Scale} from '../lib/scale';
-import {ChartExportedLayouts, DataSeries, Rect, ViewExtent} from '../lib/types';
+import {DataSeries, Rect, ViewExtent} from '../lib/types';
 
 export interface TooltipDatum {
   name: string;
@@ -83,6 +83,9 @@ export class LineChartInteractiveLayerComponent
 
   @Input()
   overlayRefContainer!: ElementRef;
+
+  @Input()
+  domDimensions!: DomDimension;
 
   @Output()
   onViewExtentChange = new EventEmitter<ViewExtent>();
@@ -214,7 +217,7 @@ export class LineChartInteractiveLayerComponent
             }
             const deltaX = -event.movementX;
             const deltaY = -event.movementY;
-            const {width: domWidth, height: domHeight} = this.getDomSizeCache();
+            const {width: domWidth, height: domHeight} = this.domDimensions;
             const xMin = this.getDataX(deltaX);
             const xMax = this.getDataX(domWidth + deltaX);
             const yMin = this.getDataY(domHeight + deltaY);
@@ -287,7 +290,7 @@ export class LineChartInteractiveLayerComponent
             console.warn(`Unknown WheelEvent deltaMode: ${event.deltaMode}.`);
         }
 
-        const {width, height} = this.getDomSizeCache();
+        const {width, height} = this.domDimensions;
         // When scrolling with mouse hover overed to the right edge, we want to scroll less to the right.
         const biasX = event.offsetX / width;
         const biasY = (height - event.offsetY) / height;
@@ -315,7 +318,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   ngOnChanges() {
-    // this.updateCursoredDataAndTooltipVisibility();
+    this.updateCursoredDataAndTooltipVisibility();
   }
 
   ngOnDestroy() {
@@ -329,7 +332,7 @@ export class LineChartInteractiveLayerComponent
 
   private updateTooltip(event: MouseEvent) {
     this.cursorXLocation = this.getDataX(event.offsetX);
-    // this.updateCursoredDataAndTooltipVisibility();
+    this.updateCursoredDataAndTooltipVisibility();
   }
 
   private proposeViewExtentOnZoom(

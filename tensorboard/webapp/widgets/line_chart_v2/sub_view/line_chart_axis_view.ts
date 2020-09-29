@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   Input,
@@ -10,7 +11,7 @@ import {format} from 'd3-format';
 
 import {Scale} from '../lib/scale';
 import {Extent} from '../lib/types';
-import {NgLineChartView} from './ng_line_chart_view';
+import {DomDimension, NgLineChartView} from './ng_line_chart_view';
 
 const d3AxisFormatter = format('.2~e');
 const d3AxisIntFormatter = format('~');
@@ -68,8 +69,8 @@ export abstract class AxisView extends NgLineChartView implements OnChanges {
 
 @Component({
   selector: 'line-chart-x-axis',
-  template: `<svg detectResize (onResize)="updateDomSizeCache()">
-    <line x1="0" y1="0" [attr.x2]="getDomSizeCache().width" y2="0"></line>
+  template: `<svg>
+    <line x1="0" y1="0" [attr.x2]="domDimensions.width" y2="0"></line>
     <ng-container *ngFor="let tick of ticks.x; trackBy: trackByTick">
       <text [attr.y]="5" [attr.x]="getDomX(tick)">
         {{ getTickString(tick) }}
@@ -119,6 +120,9 @@ export class LineChartXAxisComponent extends AxisView {
   @Input()
   yGridCount!: number;
 
+  @Input()
+  domDimensions!: DomDimension;
+
   constructor(readonly hostElRef: ElementRef) {
     super(hostElRef);
   }
@@ -126,15 +130,15 @@ export class LineChartXAxisComponent extends AxisView {
 
 @Component({
   selector: 'line-chart-y-axis',
-  template: `<svg detectResize (onResize)="updateDomSizeCache()">
+  template: `<svg>
     <line
-      [attr.x1]="getDomSizeCache().width"
+      [attr.x1]="domDimensions.width"
       y1="0"
-      [attr.x2]="getDomSizeCache().width"
-      [attr.y2]="getDomSizeCache().height"
+      [attr.x2]="domDimensions.width"
+      [attr.y2]="domDimensions.height"
     ></line>
     <ng-container *ngFor="let tick of ticks.y; trackBy: trackByTick">
-      <text [attr.x]="getDomSizeCache().width - 5" [attr.y]="getDomY(tick)">
+      <text [attr.x]="domDimensions.width - 5" [attr.y]="getDomY(tick)">
         {{ getTickString(tick) }}
       </text>
     </ng-container>
@@ -181,6 +185,9 @@ export class LineChartYAxisComponent extends AxisView {
 
   @Input()
   yGridCount!: number;
+
+  @Input()
+  domDimensions!: DomDimension;
 
   constructor(readonly hostElRef: ElementRef) {
     super(hostElRef);

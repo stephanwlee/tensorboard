@@ -18,10 +18,11 @@ import {OverlayModule} from '@angular/cdk/overlay';
 
 import {LineChartComponent} from './line_chart_component';
 import {SubViewModule} from './sub_view/sub_view_module';
+import {ResizeDetectorModule} from '../resize_detector_module';
 
 @NgModule({
   declarations: [LineChartComponent],
   exports: [LineChartComponent],
-  imports: [CommonModule, OverlayModule, SubViewModule],
+  imports: [CommonModule, OverlayModule, SubViewModule, ResizeDetectorModule],
 })
 export class LineChartModule {}

@@ -68,7 +68,6 @@ export class Layer implements ILayer {
     this.root = createRootLayout(layouts, layoutConfig, option.domRect);
 
     this.resize(option.domRect);
-    this.animate();
   }
 
   setXScaleType(type: ScaleType) {
@@ -140,24 +139,17 @@ export class Layer implements ILayer {
 
   private shouldRedraw = false;
   private scheduleRedraw() {
-    this.shouldRedraw = true;
+    if (!this.shouldRedraw) {
+      this.shouldRedraw = true;
+      requestAnimationFrame(() => {
+        this.redraw();
+        this.shouldRedraw = false;
+      });
+    }
   }
 
   private redraw() {
     this.root.redraw();
     this.renderer.render();
-  }
-
-  private animate() {
-    requestAnimationFrame(() => {
-      this.animate();
-
-      if (this.shouldRedraw) {
-        this.shouldRedraw = false;
-        this.redraw();
-      }
-
-      this.renderer.render();
-    });
   }
 }

@@ -3,6 +3,11 @@ import {ElementRef} from '@angular/core';
 import {Scale} from '../lib/scale';
 import {ViewExtent} from '../lib/types';
 
+export interface DomDimension {
+  width: number;
+  height: number;
+}
+
 export abstract class NgLineChartView {
   abstract viewExtent: ViewExtent;
 
@@ -10,31 +15,18 @@ export abstract class NgLineChartView {
 
   abstract yScale: Scale;
 
+  abstract domDimensions: DomDimension;
+
   protected readonly hostElRef: ElementRef;
 
   constructor(hostElRef: ElementRef) {
     this.hostElRef = hostElRef;
-    this.updateDomSizeCache();
-  }
-
-  private domSizeCache: {width: number; height: number} = {width: 0, height: 0};
-
-  getDomSizeCache() {
-    return this.domSizeCache;
-  }
-
-  updateDomSizeCache() {
-    const element = this.hostElRef.nativeElement;
-    this.domSizeCache = {
-      width: element.clientWidth,
-      height: element.clientHeight,
-    };
   }
 
   getDomX(dataX: number): number {
     return this.xScale.forward(
       this.viewExtent.x,
-      [0, this.getDomSizeCache().width],
+      [0, this.domDimensions.width],
       dataX
     );
   }
@@ -42,7 +34,7 @@ export abstract class NgLineChartView {
   getDataX(domX: number) {
     return this.xScale.invert(
       this.viewExtent.x,
-      [0, this.getDomSizeCache().width],
+      [0, this.domDimensions.width],
       domX
     );
   }
@@ -50,7 +42,7 @@ export abstract class NgLineChartView {
   getDomY(dataY: number): number {
     return this.yScale.forward(
       this.viewExtent.y,
-      [this.getDomSizeCache().height, 0],
+      [this.domDimensions.height, 0],
       dataY
     );
   }
@@ -58,7 +50,7 @@ export abstract class NgLineChartView {
   getDataY(domY: number): number {
     return this.yScale.invert(
       this.viewExtent.y,
-      [this.getDomSizeCache().height, 0],
+      [this.domDimensions.height, 0],
       domY
     );
   }

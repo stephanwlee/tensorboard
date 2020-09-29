@@ -53,6 +53,10 @@ export abstract class Drawable extends LayoutRect {
     this.coordinateIdentifier = this.coordinator.getUpdateIdentifier();
   }
 
+  protected clearCoordinateIdentifier() {
+    this.coordinateIdentifier = null;
+  }
+
   markAsPaintDirtyIfCoordinateStale() {
     if (this.isCoordinateUpdated()) {
       this.markAsPaintDirty();
@@ -68,6 +72,7 @@ export abstract class DataDrawable extends Drawable {
   protected series: DataInternalSeries[] = [];
 
   setData(data: DataSeries[]) {
+    this.clearCoordinateIdentifier();
     this.rawSeriesData = data;
   }
 

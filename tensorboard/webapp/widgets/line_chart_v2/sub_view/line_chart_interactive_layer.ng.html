@@ -1,4 +1,4 @@
-<svg #dots class="dots" detectResize (onResize)="updateDomSizeCache()">
+<svg #dots class="dots">
   <ng-container *ngIf="state === InteractionState.NONE">
     <ng-container
       *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
@@ -32,7 +32,7 @@
 <ng-template
   cdkConnectedOverlay
   [cdkConnectedOverlayOrigin]="overlayRefContainer"
-  [cdkConnectedOverlayWidth]="getDomSizeCache().width"
+  [cdkConnectedOverlayWidth]="domDimensions.width"
   [cdkConnectedOverlayOpen]="tooltipDislayAttached && state === InteractionState.NONE"
   [cdkConnectedOverlayPositions]="tooltipPositions"
   (detach)="onTooltipDisplayDetached()"

@@ -3,10 +3,7 @@ import {
   Component,
   ElementRef,
   Input,
-  OnChanges,
-  SimpleChanges,
 } from '@angular/core';
-import {ticks} from 'd3-array';
 
 import {Scale} from '../lib/scale';
 import {ViewExtent} from '../lib/types';
@@ -16,19 +13,19 @@ import {AxisView} from './line_chart_axis_view';
   selector: 'line-chart-grid-view',
   template: `<svg>
     <line
-      *ngFor="let tick of ticks.x; trackBy: trackByTick"
+      *ngFor="let tick of ticks.x"
       [class.zero]="tick === 0"
       [attr.x1]="getDomX(tick)"
       y1="0"
       [attr.x2]="getDomX(tick)"
-      [attr.y2]="getDomSizeCache().height"
+      [attr.y2]="domDimensions.height"
     ></line>
     <line
-      *ngFor="let tick of ticks.y; trackBy: trackByTick"
+      *ngFor="let tick of ticks.y"
       [class.zero]="tick === 0"
       x1="0"
       [attr.y1]="getDomY(tick)"
-      [attr.x2]="getDomSizeCache().width"
+      [attr.x2]="domDimensions.width"
       [attr.y2]="getDomY(tick)"
     ></line>
   </svg>`,
@@ -73,7 +70,10 @@ export class LineChartGridView extends AxisView {
   @Input()
   yGridCount!: number;
 
-  constructor(hostElRef: ElementRef) {
+  @Input()
+  domDimensions!: {width: number; height: number};
+
+  constructor(readonly hostElRef: ElementRef) {
     super(hostElRef);
   }
 }

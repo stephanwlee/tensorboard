@@ -7,7 +7,6 @@ import {
   SimpleChanges,
   ViewChild,
   OnChanges,
-  OnDestroy,
   AfterViewInit,
 } from '@angular/core';
 
@@ -38,6 +37,10 @@ function calculateSeriesExtent(data: DataSeries[]): DataExtent {
   let yMin = Infinity;
   let yMax = -Infinity;
 
+  if (!data.length) {
+    return {x: [0, 1], y: [0, 1]};
+  }
+
   for (const {points} of data) {
     for (let index = 0; index < points.length; index++) {
       xMin = Math.min(xMin, points[index].x);
@@ -50,25 +53,33 @@ function calculateSeriesExtent(data: DataSeries[]): DataExtent {
   return {x: [xMin, xMax], y: [yMin, yMax]};
 }
 
-interface ResizeObserverEntry {
-  contentRect: DOMRectReadOnly;
+interface DomDimensions {
+  main: {width: number; height: number};
+  yAxis: {width: number; height: number};
+  xAxis: {width: number; height: number};
 }
 
 @Component({
   selector: 'line-chart',
   template: `
-    <div class="container">
-      <div class="series-view">
+    <div
+      class="container"
+      detectResize
+      (onResize)="onViewResize()"
+      [resizeEventDebouncePeriodInMs]="0"
+    >
+      <div class="series-view" #main>
         <line-chart-grid-view
           [viewExtent]="viewExtent"
           [xScale]="xScale"
           [yScale]="yScale"
           [xGridCount]="10"
           [yGridCount]="6"
+          [domDimensions]="domDimensions.main"
         ></line-chart-grid-view>
-        <svg #renderArea *ngIf="getRendererType() === RendererType.SVG"></svg>
+        <svg #chartEl *ngIf="getRendererType() === RendererType.SVG"></svg>
         <canvas
-          #renderArea
+          #chartEl
           *ngIf="getRendererType() === RendererType.WEBGL"
         ></canvas>
         <line-chart-interactive-layer
@@ -78,22 +89,26 @@ interface ResizeObserverEntry {
           [viewExtent]="viewExtent"
           [xScale]="xScale"
           [yScale]="yScale"
-          [overlayRefContainer]="overlayAnchor"
+          [overlayRefContainer]="xAxis"
+          [domDimensions]="domDimensions.main"
           (onViewExtentChange)="onViewExtentChanged($event)"
           (onViewExtentReset)="onViewExtentReset()"
         ></line-chart-interactive-layer>
       </div>
       <line-chart-y-axis
+        #yAxis
         [viewExtent]="viewExtent"
         [yScale]="yScale"
         [yGridCount]="6"
+        [domDimensions]="domDimensions.yAxis"
       ></line-chart-y-axis>
       <line-chart-x-axis
-        #overlayAnchor="cdkOverlayOrigin"
+        #xAxis="cdkOverlayOrigin"
         cdkOverlayOrigin
         [viewExtent]="viewExtent"
         [xScale]="xScale"
         [xGridCount]="10"
+        [domDimensions]="domDimensions.xAxis"
       ></line-chart-x-axis>
     </div>
   `,
@@ -145,11 +160,20 @@ interface ResizeObserverEntry {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
+export class LineChartComponent implements AfterViewInit, OnChanges {
   readonly RendererType = RendererType;
 
-  @ViewChild('renderArea', {static: false, read: ElementRef})
-  private renderArea?: ElementRef<HTMLCanvasElement | SVGElement>;
+  @ViewChild('main', {static: true, read: ElementRef})
+  private main!: ElementRef<HTMLElement>;
+
+  @ViewChild('xAxis', {static: true, read: ElementRef})
+  private xAxis!: ElementRef<HTMLElement>;
+
+  @ViewChild('yAxis', {static: true, read: ElementRef})
+  private yAxis!: ElementRef<HTMLElement>;
+
+  @ViewChild('chartEl', {static: false, read: ElementRef})
+  private chartEl?: ElementRef<HTMLCanvasElement | SVGElement>;
 
   @Input()
   readonly preferredRendererType: RendererType = isWebGl2Supported()
@@ -188,6 +212,12 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     y: [0, 1],
   };
 
+  domDimensions: DomDimensions = {
+    main: {width: 0, height: 0},
+    xAxis: {width: 0, height: 0},
+    yAxis: {width: 0, height: 0},
+  };
+
   private lineChart?: ILayer;
   private dataExtent?: DataExtent;
   private isDataUpdated = false;
@@ -195,36 +225,10 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Must set the default view extent since it is an optional input.
   private isViewExtentUpdated = true;
 
-  private readonly resizeObserver: any;
-
   constructor(
     private readonly hostElRef: ElementRef,
     private readonly changeDetector: ChangeDetectorRef
-  ) {
-    this.resizeObserver = new (window as any).ResizeObserver(
-      (entries: ResizeObserverEntry[]) => {
-        if (!this.lineChart) {
-          return;
-        }
-
-        for (const entry of entries) {
-          if (!entry.contentRect) {
-            return;
-          }
-          const rect = this.getDomRect();
-          if (!rect) {
-            return;
-          }
-          this.lineChart.resize(rect);
-        }
-      }
-    );
-    this.resizeObserver.observe(hostElRef.nativeElement);
-  }
-
-  ngOnDestroy() {
-    this.resizeObserver.unobserve(this.hostElRef.nativeElement);
-  }
+  ) {}
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['xScaleType']) {
@@ -237,9 +241,8 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     if (changes['data']) {
       this.isDataUpdated = true;
-      if (!this.viewExtent) {
-        this.isViewExtentUpdated = true;
-      }
+      // Changing the data points resets the viewExtent.
+      this.isViewExtentUpdated = true;
     }
 
     if (changes['defaultViewExtent']) {
@@ -258,6 +261,19 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.updateProp();
   }
 
+  onViewResize() {
+    if (!this.lineChart) {
+      return;
+    }
+
+    this.updateDomDimensions();
+    this.lineChart.resize({
+      x: 0,
+      y: 0,
+      ...this.domDimensions.main,
+    });
+  }
+
   private initializeChart() {
     if (this.lineChart) {
       return;
@@ -272,17 +288,19 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     };
 
     let params: LayerOption | null = null;
-    const domRect = this.getDomRect();
 
-    if (!domRect) {
-      return;
-    }
+    this.updateDomDimensions();
+    const domRect = {
+      x: 0,
+      y: 0,
+      ...this.domDimensions.main,
+    };
 
     switch (rendererType) {
       case RendererType.SVG: {
         params = {
           type: RendererType.SVG,
-          container: this.renderArea!.nativeElement as SVGElement,
+          container: this.chartEl!.nativeElement as SVGElement,
           callbacks,
           domRect,
           xScaleType: this.xScaleType,
@@ -293,7 +311,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       case RendererType.WEBGL:
         params = {
           type: RendererType.WEBGL,
-          container: this.renderArea!.nativeElement as HTMLCanvasElement,
+          container: this.chartEl!.nativeElement as HTMLCanvasElement,
           devicePixelRatio: window.devicePixelRatio,
           callbacks,
           domRect,
@@ -332,35 +350,39 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private getDomRect(): Rect | null {
-    if (!this.renderArea) {
-      return null;
-    }
-    switch (this.preferredRendererType) {
-      case RendererType.SVG:
-        return {
-          x: 0,
-          y: 0,
-          width: this.renderArea.nativeElement.clientWidth,
-          height: this.renderArea.nativeElement.clientHeight,
-        };
-      case RendererType.WEBGL:
-        return {
-          x: 0,
-          y: 0,
-          width: this.renderArea.nativeElement.clientWidth,
-          height: this.renderArea.nativeElement.clientHeight,
-        };
-      default:
-        throw new Error(
-          `Unsupported rendererType: ${this.preferredRendererType}`
-        );
-    }
+  private updateDomDimensions(): void {
+    this.domDimensions = {
+      main: {
+        width: this.main.nativeElement.clientWidth,
+        height: this.main.nativeElement.clientHeight,
+      },
+      xAxis: {
+        width: this.xAxis.nativeElement.clientWidth,
+        height: this.xAxis.nativeElement.clientHeight,
+      },
+      yAxis: {
+        width: this.yAxis.nativeElement.clientWidth,
+        height: this.yAxis.nativeElement.clientHeight,
+      },
+    };
   }
 
   private updateProp() {
     if (!this.lineChart) {
       return;
+    }
+
+    if (this.isMetadataUpdated || this.isDataUpdated) {
+      this.isMetadataUpdated = false;
+      const metadata: DataSeriesMetadataMap = {};
+      this.data.forEach(({name}) => {
+        metadata[name] = {
+          name,
+          color: this.colorMap.get(name) || '#f00',
+          visible: this.visibleSeries.has(name),
+        };
+      });
+      this.lineChart.updateMetadata(metadata);
     }
 
     if (this.isDataUpdated) {
@@ -376,19 +398,6 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       if (extent) {
         this.lineChart.updateViewbox(extent);
       }
-    }
-
-    if (this.isMetadataUpdated) {
-      this.isMetadataUpdated = false;
-      const metadata: DataSeriesMetadataMap = {};
-      this.data.forEach(({name}) => {
-        metadata[name] = {
-          name,
-          color: this.colorMap.get(name) || '#f00',
-          visible: this.visibleSeries.has(name),
-        };
-      });
-      this.lineChart.updateMetadata(metadata);
     }
   }
 
