@@ -22,7 +22,7 @@ function axisFormatter(num: number): string {
   }
 
   const absNum = Math.abs(num);
-  if (absNum >= 1000 || absNum <= 0.001) {
+  if (absNum >= 100000 || absNum < 0.001) {
     return d3AxisFormatter(num);
   }
   return d3AxisIntFormatter(num);
@@ -34,7 +34,7 @@ export abstract class AxisView extends NgLineChartView implements OnChanges {
   }
 
   abstract xGridCount = 10;
-  abstract yGridCount = 10;
+  abstract yGridCount = 5;
 
   ticks: {x: number[]; y: number[]} = {x: [], y: []};
 
@@ -46,17 +46,37 @@ export abstract class AxisView extends NgLineChartView implements OnChanges {
     return axisFormatter(tick);
   }
 
+  private getDomSizeInformsTickCount(
+    domSize: number,
+    tickCount: number
+  ): number {
+    const guidance = Math.floor(domSize / 100);
+    return Math.min(guidance, tickCount);
+  }
+
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['viewExtent']) {
+    if (changes['viewExtent'] || changes['domDimensions']) {
       let xTicks: number[] = [];
       let yTicks: number[] = [];
 
       if (this.xScale) {
-        xTicks = this.xScale.ticks(this.viewExtent.x, this.xGridCount);
+        xTicks = this.xScale.ticks(
+          this.viewExtent.x,
+          this.getDomSizeInformsTickCount(
+            this.domDimensions.width,
+            this.xGridCount
+          )
+        );
       }
 
       if (this.yScale) {
-        yTicks = this.yScale.ticks(this.viewExtent.y, this.yGridCount);
+        yTicks = this.yScale.ticks(
+          this.viewExtent.y,
+          this.getDomSizeInformsTickCount(
+            this.domDimensions.height,
+            this.yGridCount
+          )
+        );
       }
 
       this.ticks = {
