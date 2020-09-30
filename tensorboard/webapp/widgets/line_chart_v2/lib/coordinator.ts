@@ -128,10 +128,12 @@ export class THREECoordinator extends Coordinator {
   );
 
   setViewportRect(rectInDataCoordinate: Rect) {
-    // When adjusting view, we only need to modify the camera and not update the
-    // internal coordinate system. We don't need to update the update
-    // identifier.
     super.setViewportRect(rectInDataCoordinate);
+    this.adjustCamera();
+  }
+
+  setDomContainerRect(rect: Rect) {
+    super.setDomContainerRect(rect);
     this.adjustCamera();
   }
 
@@ -161,7 +163,6 @@ export class THREECoordinator extends Coordinator {
       viewRect.y + viewRect.height
     );
     this.camera.bottom = this.yScale.forward(domain.y, range.y, viewRect.y);
-
     this.camera.updateProjectionMatrix();
   }
 
