@@ -118,6 +118,7 @@ export class LineChartInteractiveLayerComponent
   showZoomInstruction: boolean = false;
 
   private interactionOrigin: {x: number; y: number} | null = null;
+  private isCursorInside = false;
   private readonly ngUnsubscribe = new Subject();
 
   constructor(
@@ -196,6 +197,7 @@ export class LineChartInteractiveLayerComponent
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
+        this.isCursorInside = true;
         this.updateTooltip(event);
         this.changeDetector.markForCheck();
       });
@@ -205,7 +207,7 @@ export class LineChartInteractiveLayerComponent
     })
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
-        this.tooltipDislayAttached = false;
+        this.isCursorInside = false;
         this.state = InteractionState.NONE;
         this.changeDetector.markForCheck();
       });
@@ -399,9 +401,9 @@ export class LineChartInteractiveLayerComponent
           color: this.seriesMetadataMap[id]?.color || '#f00',
         };
       });
-    this.tooltipDislayAttached = this.cursoredData.some(({point}) =>
-      Boolean(point)
-    );
+    this.tooltipDislayAttached =
+      this.isCursorInside &&
+      this.cursoredData.some(({point}) => Boolean(point));
   }
 
   /**
