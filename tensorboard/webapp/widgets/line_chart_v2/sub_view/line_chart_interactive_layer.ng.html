@@ -42,7 +42,7 @@
     >
       <div *ngIf="datum.point" class="tooltip-row">
         <span class="circle" [style.backgroundColor]="datum.color"></span>
-        <span>{{ datum.name }}</span>: <span>{{ datum.point.x }}</span>,
+        <span>{{ datum.displayName }}</span>: <span>{{ datum.point.x }}</span>,
         <span>{{ datum.point.y }}</span>
       </div>
     </ng-container>

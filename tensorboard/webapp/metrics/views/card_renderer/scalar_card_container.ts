@@ -61,7 +61,10 @@ import {getTagDisplayName} from '../utils';
 
 import {SeriesDataList, SeriesPoint} from './scalar_card_component';
 import {getDisplayNameForRun} from './utils';
-import {DataSeries} from '../../../widgets/line_chart_v2/lib/types';
+import {
+  DataSeries,
+  DataSeriesMetadataMap,
+} from '../../../widgets/line_chart_v2/lib/types';
 
 type ScalarCardMetadata = CardMetadata & {
   plugin: PluginType.SCALARS;
@@ -109,6 +112,7 @@ function areSeriesDataListEqual(
       [colorMap]="colorMap$ | async"
       [dataSeries]="dataSeries$ | async"
       [visibleSeries]="visibleSeries$ | async"
+      [chartMetadataMap]="chartMetadataMap$ | async"
       (onFullSizeToggle)="onFullSizeToggle()"
       (onPinClicked)="pinStateChanged.emit($event)"
     ></scalar-card-component>
@@ -141,6 +145,8 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
   dataSeries$?: Observable<DataSeries[]>;
   colorMap$?: Observable<Map<string, string>>;
   visibleSeries$?: Observable<Set<string>>;
+  chartMetadataMap$?: Observable<DataSeriesMetadataMap>;
+
   readonly tooltipSort$ = this.store.select(getMetricsTooltipSort);
   readonly ignoreOutliers$ = this.store.select(getMetricsIgnoreOutliers);
   readonly xAxisType$ = this.store.select(getMetricsXAxisType);
@@ -253,7 +259,8 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
       map(([result, runSelectionMap]) => {
         return result.map(({runId, displayName, points}) => {
           return {
-            name: runId,
+            id: runId,
+            displayName,
             points,
           };
         });
@@ -261,17 +268,39 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
       startWith([])
     );
 
-    this.visibleSeries$ = this.store.select(getCurrentRouteRunSelection).pipe(
-      map((runSelectionMap) => {
-        const visible = new Set<string>();
+    this.chartMetadataMap$ = combineLatest([
+      this.store.select(getCurrentRouteRunSelection),
+      this.store.select(getRunColorMap),
+      this.store.select(getExperimentIdToAliasMap),
+    ]).pipe(
+      switchMap(([runSelectionMap, colorMap]) => {
+        const runIdsAndDisplayNames$ = [];
         if (runSelectionMap) {
-          for (const [run, selected] of runSelectionMap.entries()) {
-            if (selected) {
-              visible.add(run);
-            }
+          for (const [runId] of runSelectionMap) {
+            runIdsAndDisplayNames$.push(
+              this.getRunDisplayNameAndPoints({runId, points: []})
+            );
           }
         }
-        return visible;
+
+        if (!runIdsAndDisplayNames$.length) {
+          return of({});
+        }
+
+        return combineLatest(runIdsAndDisplayNames$).pipe(
+          map((runIdsAndDisplayNames) => {
+            const metadataMap: DataSeriesMetadataMap = {};
+            for (const {runId, displayName} of runIdsAndDisplayNames) {
+              metadataMap[runId] = {
+                id: runId,
+                displayName,
+                visible: runSelectionMap?.get(runId) ?? false,
+                color: colorMap[runId],
+              };
+            }
+            return metadataMap;
+          })
+        );
       })
     );
 

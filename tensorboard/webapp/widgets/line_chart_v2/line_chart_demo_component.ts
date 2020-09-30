@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {DataSeries, ScaleType} from './lib/types';
+import {DataSeries, DataSeriesMetadataMap, ScaleType} from './lib/types';
 import {createDataSeries} from './create_data';
 
 const NUM_SERIES = 5;
@@ -39,9 +39,8 @@ const COLORS = [
   selector: 'line-chart-demo',
   template: `
     <line-chart
-      [data]="data"
-      [visibleSeries]="visibleSeries"
-      [colorMap]="colorMap"
+      [seriesData]="seriesData"
+      [seriesMetadataMap]="metadataMap"
       [xScaleType]="ScaleType.LINEAR"
       [yScaleType]="ScaleType.LINEAR"
     ></line-chart>
@@ -65,15 +64,20 @@ const COLORS = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LineChartDemoComponent {
-  readonly data: DataSeries[] = createDataSeries(NUM_SERIES, NUM_POINTS);
-
-  visibleSeries = new Set<string>([...this.data.map(({name}) => name)]);
+  readonly seriesData: DataSeries[] = createDataSeries(NUM_SERIES, NUM_POINTS);
 
   readonly ScaleType = ScaleType;
 
-  colorMap = new Map<string, string>(
-    this.data.map(({name}, index) => {
-      return [name, COLORS[index % COLORS.length]];
-    })
+  readonly metadataMap: DataSeriesMetadataMap = this.seriesData.reduce(
+    (metadataMap, {id}, index) => {
+      metadataMap[id] = {
+        id,
+        displayName: id,
+        color: COLORS[index % COLORS.length],
+        visible: true,
+      };
+      return metadataMap;
+    },
+    {} as DataSeriesMetadataMap
   );
 }

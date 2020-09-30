@@ -87,7 +87,7 @@ export abstract class DataDrawable extends Drawable {
     for (let i = 0; i < this.rawSeriesData.length; i++) {
       const datum = this.rawSeriesData[i];
       this.series[i] = {
-        name: datum.name,
+        id: datum.id,
         paths: new Float32Array(datum.points.length * 2),
       };
       for (let pointIndex = 0; pointIndex < datum.points.length; pointIndex++) {

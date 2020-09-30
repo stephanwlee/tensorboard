@@ -45,8 +45,8 @@ export interface ResizeMessage {
 
 export interface SeriesUpdateMessage {
   type: MainToGuestEvent.SERIES_DATA_UPDATE;
-  namesAndLengths: Array<{
-    name: string;
+  idsAndLengths: Array<{
+    id: string;
     length: number;
   }>;
   flattenedSeries: ArrayBufferLike;

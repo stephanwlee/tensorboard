@@ -14,7 +14,6 @@ import {
   OnChanges,
   OnDestroy,
   Output,
-  SimpleChanges,
   ViewChild,
   HostBinding,
 } from '@angular/core';
@@ -24,10 +23,16 @@ import {filter, map, switchMap, takeUntil, tap} from 'rxjs/operators';
 
 import {DomDimension, NgLineChartView} from './ng_line_chart_view';
 import {Scale} from '../lib/scale';
-import {DataSeries, Rect, ViewExtent} from '../lib/types';
+import {
+  DataSeries,
+  DataSeriesMetadataMap,
+  Rect,
+  ViewExtent,
+} from '../lib/types';
 
 export interface TooltipDatum {
-  name: string;
+  id: string;
+  displayName: string;
   color: string;
   point: {x: number; y: number} | null;
 }
@@ -64,13 +69,10 @@ export class LineChartInteractiveLayerComponent
   overlay!: CdkConnectedOverlay;
 
   @Input()
-  data!: DataSeries[];
+  seriesData!: DataSeries[];
 
   @Input()
-  visibleSeries!: Set<string>;
-
-  @Input()
-  colorMap!: Map<string, string>;
+  seriesMetadataMap!: DataSeriesMetadataMap;
 
   @Input()
   viewExtent!: ViewExtent;
@@ -340,7 +342,7 @@ export class LineChartInteractiveLayerComponent
   }
 
   trackBySeriesName(datum: TooltipDatum) {
-    return datum.name;
+    return datum.id;
   }
 
   private updateTooltip(event: MouseEvent) {
@@ -385,13 +387,18 @@ export class LineChartInteractiveLayerComponent
       return;
     }
 
-    this.cursoredData = this.data.map(({name, points}) => {
-      return {
-        name,
-        point: this.findClosestPoint(points, this.cursorXLocation!),
-        color: this.colorMap.get(name) || '#f00',
-      };
-    });
+    this.cursoredData = this.seriesData
+      .filter(({id}) => {
+        return this.seriesMetadataMap[id]?.visible;
+      })
+      .map(({id, points}) => {
+        return {
+          id,
+          displayName: this.seriesMetadataMap[id]?.displayName || id,
+          point: this.findClosestPoint(points, this.cursorXLocation!),
+          color: this.seriesMetadataMap[id]?.color || '#f00',
+        };
+      });
     this.tooltipDislayAttached = this.cursoredData.some(({point}) =>
       Boolean(point)
     );

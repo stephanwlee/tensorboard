@@ -6,7 +6,7 @@ export interface Rect {
 }
 
 export interface DataSeries {
-  name: string;
+  id: string;
   points: Array<{x: number; y: number}>;
 }
 
@@ -23,7 +23,7 @@ export enum ScaleType {
 export type Paths = Float32Array;
 
 export interface DataInternalSeries {
-  name: string;
+  id: string;
   paths: Paths;
 }
 
@@ -37,7 +37,12 @@ export type DataExtent = Extent;
 export type ViewExtent = Extent;
 
 export interface DataSeriesMetadataMap {
-  [id: string]: {name: string; visible: boolean; color: string};
+  [id: string]: {
+    id: string;
+    displayName: string;
+    visible: boolean;
+    color: string;
+  };
 }
 
 export type SeriesId = string;

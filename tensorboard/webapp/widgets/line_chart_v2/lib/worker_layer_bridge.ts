@@ -63,7 +63,7 @@ function createPortHandler(port: MessagePort, initMessage: InitMessage) {
         const data: DataSeries[] = [];
         let rawDataIndex = 0;
 
-        for (const {name, length} of message.namesAndLengths) {
+        for (const {id, length} of message.idsAndLengths) {
           const points = [] as Array<{x: number; y: number}>;
           for (let index = 0; index < length; index++) {
             points.push({
@@ -72,7 +72,7 @@ function createPortHandler(port: MessagePort, initMessage: InitMessage) {
             });
           }
           data.push({
-            name,
+            id,
             points,
           });
         }

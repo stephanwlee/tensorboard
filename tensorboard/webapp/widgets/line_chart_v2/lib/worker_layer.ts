@@ -99,11 +99,11 @@ export class WorkerLayer implements ILayer {
     }, 0);
     let seriesIndex = 0;
     const flattenedSeries = new Float32Array(totalLength * 2);
-    const namesAndLengths: Array<{name: string; length: number}> = [];
+    const idsAndLengths: Array<{id: string; length: number}> = [];
 
     for (const series of data) {
-      namesAndLengths.push({
-        name: series.name,
+      idsAndLengths.push({
+        id: series.id,
         length: series.points.length,
       });
       for (let index = 0; index < series.points.length; index++) {
@@ -115,7 +115,7 @@ export class WorkerLayer implements ILayer {
     this.sendMessage(
       {
         type: MainToGuestEvent.SERIES_DATA_UPDATE,
-        namesAndLengths,
+        idsAndLengths,
         flattenedSeries: flattenedSeries.buffer,
         extent,
       },

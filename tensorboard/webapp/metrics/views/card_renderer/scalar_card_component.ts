@@ -43,6 +43,7 @@ import {
   DataSeries,
   RendererType,
   ScaleType,
+  DataSeriesMetadataMap,
 } from '../../../widgets/line_chart_v2/lib/types';
 
 const RESIZE_REDRAW_DEBOUNCE_TIME_IN_MS = 50;
@@ -132,6 +133,7 @@ export class ScalarCardComponent {
   @Input() dataSeries!: DataSeries[];
   @Input() visibleSeries!: Set<string>;
   @Input() colorMap!: Map<string, string>;
+  @Input() chartMetadataMap!: DataSeriesMetadataMap;
 
   constructor(private readonly ref: ElementRef) {}
 

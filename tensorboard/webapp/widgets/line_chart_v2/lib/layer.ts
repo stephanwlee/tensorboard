@@ -132,7 +132,6 @@ export class Layer implements ILayer {
   }
 
   updateData(data: DataSeries[], extent: DataExtent) {
-    // this.coordinator.setDataExtent(extent);
     this.root.setData(data);
     this.scheduleRedraw();
   }

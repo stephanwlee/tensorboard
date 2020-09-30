@@ -83,9 +83,8 @@ interface DomDimensions {
           *ngIf="getRendererType() === RendererType.WEBGL"
         ></canvas>
         <line-chart-interactive-layer
-          [data]="data"
-          [visibleSeries]="visibleSeries"
-          [colorMap]="colorMap"
+          [seriesData]="seriesData"
+          [seriesMetadataMap]="seriesMetadataMap"
           [viewExtent]="viewExtent"
           [xScale]="xScale"
           [yScale]="yScale"
@@ -181,16 +180,13 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
     : RendererType.SVG;
 
   @Input()
-  data!: DataSeries[];
+  seriesData!: DataSeries[];
 
   @Input()
   defaultViewExtent?: ViewExtent;
 
   @Input()
-  visibleSeries!: Set<string>;
-
-  @Input()
-  colorMap!: Map<string, string>;
+  seriesMetadataMap!: DataSeriesMetadataMap;
 
   @Input()
   forceUseWorkerIfCanvas: boolean = false;
@@ -239,7 +235,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       this.yScale = createScale(this.yScaleType);
     }
 
-    if (changes['data']) {
+    if (changes['seriesData']) {
       this.isDataUpdated = true;
       // Changing the data points resets the viewExtent.
       this.isViewExtentUpdated = true;
@@ -249,7 +245,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       this.isViewExtentUpdated = true;
     }
 
-    if (changes['visibleSeries'] || changes['colorMap']) {
+    if (changes['seriesMetadataMap']) {
       this.isMetadataUpdated = true;
     }
 
@@ -375,20 +371,17 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
     if (this.isMetadataUpdated || this.isDataUpdated) {
       this.isMetadataUpdated = false;
       const metadata: DataSeriesMetadataMap = {};
-      this.data.forEach(({name}) => {
-        metadata[name] = {
-          name,
-          color: this.colorMap.get(name) || '#f00',
-          visible: this.visibleSeries.has(name),
-        };
+      // Copy over only what is required.
+      this.seriesData.forEach(({id}) => {
+        metadata[id] = this.seriesMetadataMap[id];
       });
       this.lineChart.updateMetadata(metadata);
     }
 
     if (this.isDataUpdated) {
       this.isDataUpdated = false;
-      this.dataExtent = calculateSeriesExtent(this.data);
-      this.lineChart.updateData(this.data, this.dataExtent);
+      this.dataExtent = calculateSeriesExtent(this.seriesData);
+      this.lineChart.updateData(this.seriesData, this.dataExtent);
       this.viewExtent = this.getDefaultViewExtent() || this.viewExtent;
     }
 

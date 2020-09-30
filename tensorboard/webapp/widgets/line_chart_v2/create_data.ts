@@ -12,9 +12,9 @@ export function createDataSeries(
   });
 }
 
-function createData(numPointsPerSeries: number, lambda: number) {
+function createData(numPointsPerSeries: number, lambda: number): DataSeries {
   return {
-    name: `sine_${lambda}`,
+    id: `sine_${lambda}`,
     points: [...new Array(numPointsPerSeries)].map((_, index) => {
       return {
         x: index,
