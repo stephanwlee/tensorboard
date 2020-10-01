@@ -34,6 +34,10 @@
   [cdkConnectedOverlayOrigin]="overlayRefContainer"
   [cdkConnectedOverlayOpen]="tooltipDislayAttached && state === InteractionState.NONE"
   [cdkConnectedOverlayPositions]="tooltipPositions"
+  [cdkConnectedOverlayScrollStrategy]="scrollStrategy"
+  [cdkConnectedOverlayLockPosition]="false"
+  [cdkConnectedOverlayFlexibleDimensions]="true"
+  [cdkConnectedOverlayGrowAfterOpen]="true"
   (detach)="onTooltipDisplayDetached()"
 >
   <div class="tooltip-container">

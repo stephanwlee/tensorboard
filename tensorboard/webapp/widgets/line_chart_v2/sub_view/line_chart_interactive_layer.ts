@@ -3,6 +3,8 @@ import {
   CloseScrollStrategy,
   ConnectedPosition,
   Overlay,
+  RepositionScrollStrategy,
+  ScrollStrategy,
 } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
@@ -46,6 +48,12 @@ enum InteractionState {
 
 const SCROLL_ZOOM_SPEED_FACTOR = 0.01;
 
+export function scrollStrategyFactory(
+  overlay: Overlay
+): RepositionScrollStrategy {
+  return overlay.scrollStrategies.reposition();
+}
+
 @Component({
   selector: 'line-chart-interactive-layer',
   templateUrl: './line_chart_interactive_layer.ng.html',
@@ -53,8 +61,8 @@ const SCROLL_ZOOM_SPEED_FACTOR = 0.01;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
-      provide: CloseScrollStrategy,
-      useClass: CloseScrollStrategy,
+      provide: RepositionScrollStrategy,
+      useFactory: scrollStrategyFactory,
       deps: [Overlay],
     },
   ],
@@ -101,11 +109,28 @@ export class LineChartInteractiveLayerComponent
   zoomBoxInUiCoordinate: Rect = {x: 0, width: 0, height: 0, y: 0};
 
   readonly tooltipPositions: ConnectedPosition[] = [
+    // Prefer align at bottom edge of the line chart
     {
       offsetY: 5,
       originX: 'start',
       overlayX: 'start',
       originY: 'bottom',
+      overlayY: 'top',
+    },
+    // Then top
+    {
+      offsetY: 5,
+      originX: 'start',
+      overlayX: 'start',
+      originY: 'top',
+      overlayY: 'bottom',
+    },
+    // then right
+    {
+      offsetX: 5,
+      originX: 'end',
+      overlayX: 'start',
+      originY: 'top',
       overlayY: 'top',
     },
   ];
@@ -124,7 +149,7 @@ export class LineChartInteractiveLayerComponent
   constructor(
     readonly hostElRef: ElementRef,
     private readonly changeDetector: ChangeDetectorRef,
-    readonly scrollStrategy: CloseScrollStrategy
+    readonly scrollStrategy: RepositionScrollStrategy
   ) {
     super(hostElRef);
   }
@@ -208,6 +233,7 @@ export class LineChartInteractiveLayerComponent
       .pipe(takeUntil(this.ngUnsubscribe))
       .subscribe((event) => {
         this.isCursorInside = false;
+        this.updateTooltip(event);
         this.state = InteractionState.NONE;
         this.changeDetector.markForCheck();
       });

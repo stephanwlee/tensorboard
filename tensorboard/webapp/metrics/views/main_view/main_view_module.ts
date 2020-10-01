@@ -18,6 +18,7 @@ import {MatAutocompleteModule} from '@angular/material/autocomplete';
 import {MatButtonModule} from '@angular/material/button';
 import {MatIconModule} from '@angular/material/icon';
 import {MatInputModule} from '@angular/material/input';
+import {ScrollingModule} from '@angular/cdk/scrolling';
 
 import {CardRendererModule} from '../card_renderer/card_renderer_module';
 import {RightPaneModule} from '../right_pane/right_pane_module';
@@ -59,6 +60,7 @@ import {PinnedViewContainer} from './pinned_view_container';
     MatIconModule,
     MatInputModule,
     RightPaneModule,
+    ScrollingModule,
   ],
 })
 export class MainViewModule {}

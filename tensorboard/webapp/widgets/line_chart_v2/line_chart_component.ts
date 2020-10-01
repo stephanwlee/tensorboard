@@ -67,6 +67,8 @@ interface DomDimensions {
       detectResize
       (onResize)="onViewResize()"
       [resizeEventDebouncePeriodInMs]="0"
+      #overlayTarget="cdkOverlayOrigin"
+      cdkOverlayOrigin
     >
       <div class="series-view" #main>
         <line-chart-grid-view
@@ -88,7 +90,7 @@ interface DomDimensions {
           [viewExtent]="viewExtent"
           [xScale]="xScale"
           [yScale]="yScale"
-          [overlayRefContainer]="xAxis"
+          [overlayRefContainer]="overlayTarget"
           [domDimensions]="domDimensions.main"
           (onViewExtentChange)="onViewExtentChanged($event)"
           (onViewExtentReset)="onViewExtentReset()"
@@ -102,8 +104,7 @@ interface DomDimensions {
         [domDimensions]="domDimensions.yAxis"
       ></line-chart-y-axis>
       <line-chart-x-axis
-        #xAxis="cdkOverlayOrigin"
-        cdkOverlayOrigin
+        #xAxis
         [viewExtent]="viewExtent"
         [xScale]="xScale"
         [xGridCount]="10"
