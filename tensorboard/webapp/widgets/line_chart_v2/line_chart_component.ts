@@ -230,10 +230,18 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
   ngOnChanges(changes: SimpleChanges) {
     if (changes['xScaleType']) {
       this.xScale = createScale(this.xScaleType);
+      if (this.lineChart) {
+        this.lineChart.setXScaleType(this.xScaleType);
+      }
+      this.setDefaultViewExtent();
     }
 
     if (changes['yScaleType']) {
       this.yScale = createScale(this.yScaleType);
+      if (this.lineChart) {
+        this.lineChart.setYScaleType(this.yScaleType);
+      }
+      this.setDefaultViewExtent();
     }
 
     if (changes['seriesData']) {
@@ -242,7 +250,11 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       this.isViewExtentUpdated = true;
     }
 
-    if (changes['defaultViewExtent']) {
+    if (
+      changes['defaultViewExtent'] ||
+      changes['xScaleType'] ||
+      changes['yScaleType']
+    ) {
       this.isViewExtentUpdated = true;
     }
 
@@ -402,12 +414,26 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
   }
 
   onViewExtentReset() {
-    this.isViewExtentUpdated = true;
-    const nextExtent = this.getDefaultViewExtent();
-    if (nextExtent) {
-      this.viewExtent = nextExtent;
-    }
+    this.setDefaultViewExtent();
     this.updateProp();
+  }
+
+  private setDefaultViewExtent() {
+    const nextExtent = this.getDefaultViewExtent();
+    if (!nextExtent) {
+      this.isViewExtentUpdated = Boolean(this.viewExtent);
+      return;
+    }
+
+    if (
+      this.viewExtent.x[0] !== nextExtent.x[0] ||
+      this.viewExtent.x[1] !== nextExtent.x[1] ||
+      this.viewExtent.y[0] !== nextExtent.y[0] ||
+      this.viewExtent.y[1] !== nextExtent.y[1]
+    ) {
+      this.viewExtent = nextExtent;
+      this.isViewExtentUpdated = true;
+    }
   }
 
   private getDefaultViewExtent(): ViewExtent | null {
