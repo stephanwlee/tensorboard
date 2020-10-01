@@ -115,15 +115,20 @@ export class Log10Scale implements Scale {
 
   nice(minAndMax: [number, number]): [number, number] {
     const [min, max] = minAndMax;
+    const adjustedMin = Math.max(min, Number.MIN_VALUE);
+    const adjustedMax = Math.max(max, Number.MIN_VALUE);
 
-    const [niceMin, niceMax] = scaleLog()
-      .domain([
-        min > 0 ? min : Number.MIN_VALUE,
-        max > 0 ? max : Number.MIN_VALUE,
-      ])
-      .nice()
-      .domain();
-    return [niceMin, niceMax];
+    const numericMinLogValue = Math.log(Number.MIN_VALUE);
+    const minLogValue = Math.log(adjustedMin);
+    const maxLogValue = Math.log(adjustedMax);
+
+    const spreadInLog = maxLogValue - minLogValue;
+    const padInLog = spreadInLog ? spreadInLog * 0.05 : 1;
+
+    return [
+      Math.exp(Math.max(numericMinLogValue, minLogValue - padInLog)),
+      Math.exp(maxLogValue + padInLog),
+    ];
   }
 
   ticks(domain: [number, number], count: number): number[] {
