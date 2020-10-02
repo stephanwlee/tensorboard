@@ -258,6 +258,7 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
     }
 
     const {visible, color, width} = spec;
+    const opacity = spec.opacity ?? 1;
 
     const cache = this.currentRenderGroup.get(id);
     let line: THREE.Line | null = null;
@@ -302,8 +303,12 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       }
 
       if (!currentColor.equals(newColor)) {
-        (line.geometry as any).dynamic = true;
         material.color.set(newColor);
+        material.needsUpdate = true;
+      }
+
+      if (material.opacity !== opacity) {
+        material.opacity = opacity;
         material.needsUpdate = true;
       }
 
@@ -319,6 +324,7 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       const material = new THREE.LineBasicMaterial({
         color,
         linewidth: width,
+        opacity,
       });
       line = new THREE.Line(geometry, material);
       this.currentRenderGroup.set(id, {

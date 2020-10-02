@@ -5,9 +5,14 @@ export interface Rect {
   height: number;
 }
 
-export interface DataSeries {
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface DataSeries<T extends Point = Point> {
   id: string;
-  points: Array<{x: number; y: number}>;
+  points: T[];
 }
 
 export enum ScaleType {
@@ -36,13 +41,25 @@ export type DataExtent = Extent;
 
 export type ViewExtent = Extent;
 
-export interface DataSeriesMetadataMap {
-  [id: string]: {
-    id: string;
-    displayName: string;
-    visible: boolean;
-    color: string;
-  };
+export interface DataSeriesMetadata {
+  id: string;
+  displayName: string;
+  visible: boolean;
+  color: string;
+  // Number between 0-1. Default is 1.
+  opacity?: number;
+  /**
+   * Whether the series is auxiliary. When a datum is auxiliary, it is visible in the
+   * chart but will not be used for calculating the data extent and will not be
+   * interactable.
+   */
+  aux?: boolean;
+}
+
+export interface DataSeriesMetadataMap<
+  Metadata extends DataSeriesMetadata = DataSeriesMetadata
+> {
+  [id: string]: Metadata;
 }
 
 export type SeriesId = string;

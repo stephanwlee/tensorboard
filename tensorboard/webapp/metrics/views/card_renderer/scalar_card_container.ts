@@ -22,7 +22,7 @@ import {
 } from '@angular/core';
 import {Store} from '@ngrx/store';
 import {DataLoadState} from '../../../types/data';
-import {combineLatest, Observable, of} from 'rxjs';
+import {combineLatest, from, Observable, of} from 'rxjs';
 import {
   shareReplay,
   combineLatestWith,
@@ -32,6 +32,7 @@ import {
   map,
   startWith,
   switchMap,
+  withLatestFrom,
 } from 'rxjs/operators';
 
 import {State} from '../../../app_state';
@@ -63,8 +64,10 @@ import {SeriesDataList, SeriesPoint} from './scalar_card_component';
 import {getDisplayNameForRun} from './utils';
 import {
   DataSeries,
+  DataSeriesMetadata,
   DataSeriesMetadataMap,
 } from '../../../widgets/line_chart_v2/lib/types';
+import {classicSmoothing} from '../../../widgets/line_chart_v2/data_transformer';
 
 type ScalarCardMetadata = CardMetadata & {
   plugin: PluginType.SCALARS;
@@ -92,6 +95,11 @@ function areSeriesDataListEqual(
       })
     );
   });
+}
+
+interface ScalarCardSeriesMetadata extends DataSeriesMetadata {
+  smoothOf: string | null;
+  smoothedBy: string | null;
 }
 
 @Component({
@@ -145,7 +153,9 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
   dataSeries$?: Observable<DataSeries[]>;
   colorMap$?: Observable<Map<string, string>>;
   visibleSeries$?: Observable<Set<string>>;
-  chartMetadataMap$?: Observable<DataSeriesMetadataMap>;
+  chartMetadataMap$?: Observable<
+    DataSeriesMetadataMap<ScalarCardSeriesMetadata>
+  >;
 
   readonly tooltipSort$ = this.store.select(getMetricsTooltipSort);
   readonly ignoreOutliers$ = this.store.select(getMetricsIgnoreOutliers);
@@ -238,69 +248,91 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
       shareReplay(1)
     );
 
-    this.dataSeries$ = runIdAndPoints$.pipe(
-      switchMap((runIdAndPoints) => {
-        if (!runIdAndPoints.length) {
-          return of([]);
+    const dataSeriesWithSmoothedData$ = this.seriesDataList$.pipe(
+      combineLatestWith(this.store.select(getMetricsScalarSmoothing)),
+      switchMap(([seriesDataList, smoothing]) => {
+        const seriesWithMetadata = new Map<
+          string,
+          DataSeries & Omit<ScalarCardSeriesMetadata, 'color'>
+        >();
+
+        for (const seriesData of seriesDataList) {
+          seriesWithMetadata.set(seriesData.seriesId, {
+            id: seriesData.seriesId,
+            points: seriesData.points,
+            displayName: seriesData.metadata.displayName,
+            visible: seriesData.visible,
+            smoothOf: null,
+            smoothedBy: null,
+          });
         }
 
-        return combineLatest(
-          runIdAndPoints.map((runIdAndPoint) => {
-            return this.getRunDisplayNameAndPoints(runIdAndPoint);
+        if (smoothing === 0) {
+          return of(seriesWithMetadata);
+        }
+
+        return from(
+          classicSmoothing([...seriesWithMetadata.values()], smoothing)
+        ).pipe(
+          map((smoothedData) => {
+            const smoothedDataMap = new Map<string, DataSeries['points']>();
+            for (const data of smoothedData) {
+              smoothedDataMap.set(data.srcId, data.points);
+            }
+            const seriesIds = [...seriesWithMetadata.keys()];
+            for (const seriesId of seriesIds) {
+              const srcSeries = seriesWithMetadata.get(seriesId)!;
+              const smoothedSeriesId = JSON.stringify(['smoothed', seriesId]);
+              seriesWithMetadata.set(smoothedSeriesId, {
+                id: smoothedSeriesId,
+                smoothOf: seriesId,
+                smoothedBy: null,
+                points: smoothedDataMap.get(seriesId)!,
+                displayName: srcSeries.displayName,
+                visible: srcSeries.visible,
+              });
+
+              srcSeries.smoothedBy = smoothedSeriesId;
+            }
+            return seriesWithMetadata;
           })
         );
       }),
-      combineLatestWith(this.store.select(getCurrentRouteRunSelection)),
-      // When the `fetchRunsSucceeded` action fires, the run selection
-      // map and the metadata change. To prevent quick fire of changes,
-      // debounce by a microtask to emit only single change for the runs
-      // store change.
-      debounceTime(0),
-      map(([result, runSelectionMap]) => {
-        return result.map(({runId, displayName, points}) => {
-          return {
-            id: runId,
-            displayName,
-            points,
-          };
-        });
+      shareReplay(1)
+    );
+
+    this.dataSeries$ = dataSeriesWithSmoothedData$.pipe(
+      map((series) => {
+        const dataSeries: DataSeries[] = [];
+        for (const {id, points} of series.values()) {
+          dataSeries.push({id, points});
+        }
+        return dataSeries;
       }),
       startWith([])
     );
 
     this.chartMetadataMap$ = combineLatest([
-      this.store.select(getCurrentRouteRunSelection),
+      dataSeriesWithSmoothedData$,
       this.store.select(getRunColorMap),
-      this.store.select(getExperimentIdToAliasMap),
     ]).pipe(
-      switchMap(([runSelectionMap, colorMap]) => {
-        const runIdsAndDisplayNames$ = [];
-        if (runSelectionMap) {
-          for (const [runId] of runSelectionMap) {
-            runIdsAndDisplayNames$.push(
-              this.getRunDisplayNameAndPoints({runId, points: []})
-            );
-          }
-        }
+      map(([dataSerieswithSmoothedData, colorMap]) => {
+        const metadataMap: DataSeriesMetadataMap<ScalarCardSeriesMetadata> = {};
+        for (const [runId, data] of dataSerieswithSmoothedData.entries()) {
+          const color = data.smoothOf ? colorMap[data.smoothOf] : '#333';
 
-        if (!runIdsAndDisplayNames$.length) {
-          return of({});
+          metadataMap[runId] = {
+            id: runId,
+            displayName: data.displayName,
+            smoothedBy: data.smoothedBy,
+            smoothOf: data.smoothOf,
+            visible: data.visible,
+            color,
+            opacity: data.smoothedBy ? 0.4 : 1,
+            aux: Boolean(data.smoothedBy),
+          } as ScalarCardSeriesMetadata;
         }
-
-        return combineLatest(runIdsAndDisplayNames$).pipe(
-          map((runIdsAndDisplayNames) => {
-            const metadataMap: DataSeriesMetadataMap = {};
-            for (const {runId, displayName} of runIdsAndDisplayNames) {
-              metadataMap[runId] = {
-                id: runId,
-                displayName,
-                visible: runSelectionMap?.get(runId) ?? false,
-                color: colorMap[runId],
-              };
-            }
-            return metadataMap;
-          })
-        );
+        return metadataMap;
       })
     );
 

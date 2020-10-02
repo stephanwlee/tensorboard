@@ -187,6 +187,7 @@ ng_module(
         "//tensorboard/webapp/widgets:resize_detector",
         "//tensorboard/webapp/widgets/line_chart",
         "//tensorboard/webapp/widgets/line_chart_v2",
+        "//tensorboard/webapp/widgets/line_chart_v2:data_transformer",
         "//tensorboard/webapp/widgets/text:truncated_path",
         "@npm//@angular/core",
         "@npm//@ngrx/store",

@@ -9,12 +9,22 @@
   width: 100%;
 }
 
+$_circle-size: 12px;
+
 .circle {
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  align-items: center;
+  display: inline-flex;
+  height: $_circle-size;
+  width: $_circle-size;
+}
+
+.circle > span {
   border-radius: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   display: inline-block;
-  height: 10px;
-  width: 10px;
+  // Subtract by border width (1px on both sides)
+  height: $_circle-size - 2px;
+  width: $_circle-size - 2px;
 }
 
 .tooltip-origin {
@@ -32,13 +42,16 @@
   overflow: auto;
 }
 
-.tooltip-row {
-  display: flex;
-  align-items: center;
+th,
+td {
+  padding: 2px 5px;
+  text-align: left;
+  font-size: 0.9em;
 }
 
-.tooltip-row > span {
-  margin: 0 5px;
+th {
+  font-weight: 500;
+  padding-bottom: 5px;
 }
 
 .zoom-box {

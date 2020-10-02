@@ -40,15 +40,28 @@
   [cdkConnectedOverlayGrowAfterOpen]="true"
   (detach)="onTooltipDisplayDetached()"
 >
-  <div class="tooltip-container">
-    <ng-container
-      *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
-    >
-      <div *ngIf="datum.point" class="tooltip-row">
-        <span class="circle" [style.backgroundColor]="datum.color"></span>
-        <span>{{ datum.displayName }}</span>: <span>{{ datum.point.x }}</span>,
-        <span>{{ datum.point.y }}</span>
-      </div>
-    </ng-container>
-  </div>
+  <table class="tooltip-container">
+    <thead>
+      <tr>
+        <th class="circle-header"></th>
+        <th>Run</th>
+        <th>Value</th>
+        <th>Step</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container
+        *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
+      >
+        <tr *ngIf="datum.point" class="tooltip-row">
+          <td class="circle">
+            <span [style.backgroundColor]="datum.color"></span>
+          </td>
+          <td>{{ datum.displayName }}</td>
+          <td>{{ datum.point.y }}</td>
+          <td>{{ datum.point.x }}</td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
 </ng-template>

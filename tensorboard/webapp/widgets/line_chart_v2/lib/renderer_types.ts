@@ -26,6 +26,7 @@ export interface IRenderer {
 export interface LineSpec {
   visible: boolean;
   color: string;
+  opacity?: number;
   width: number;
   clipRect?: Rect;
 }

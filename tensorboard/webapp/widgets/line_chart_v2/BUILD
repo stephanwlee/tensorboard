@@ -1,4 +1,5 @@
 load("@npm_angular_bazel//:index.bzl", "ng_module")
+load("//tensorboard/defs:defs.bzl", "tf_ts_library")
 
 package(default_visibility = ["//tensorboard:internal"])
 
@@ -37,4 +38,10 @@ ng_module(
         "@npm//@angular/common",
         "@npm//@angular/core",
     ],
+)
+
+tf_ts_library(
+    name = "data_transformer",
+    srcs = ["data_transformer.ts"],
+    deps = ["//tensorboard/webapp/widgets/line_chart_v2/lib:types"],
 )
