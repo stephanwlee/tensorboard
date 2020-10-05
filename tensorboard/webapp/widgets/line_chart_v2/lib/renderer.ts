@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {color as d3Color} from 'd3-color';
 
 import {THREECoordinator} from './coordinator';
 import {Roboto} from './fonts/roboto';
@@ -259,6 +260,11 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
 
     const {visible, color, width} = spec;
     const opacity = spec.opacity ?? 1;
+    const newD3Color = d3Color(color);
+    const opacityAdjustedRgb = newD3Color
+      ? (newD3Color.brighter(1 - opacity) as any).formatRgb()
+      : '#aaa';
+    const newColor = new THREE.Color(opacityAdjustedRgb);
 
     const cache = this.currentRenderGroup.get(id);
     let line: THREE.Line | null = null;
@@ -290,7 +296,6 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
     if (line) {
       const material = line.material as THREE.LineBasicMaterial;
       const currentColor = material.color;
-      const newColor = new THREE.Color(color);
 
       if (material.visible !== visible) {
         material.visible = visible;
@@ -322,7 +327,7 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
     } else {
       const geometry = new THREE.BufferGeometry();
       const material = new THREE.LineBasicMaterial({
-        color,
+        color: newColor,
         linewidth: width,
         opacity,
       });

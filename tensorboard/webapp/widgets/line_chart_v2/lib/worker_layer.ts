@@ -93,7 +93,7 @@ export class WorkerLayer implements ILayer {
     });
   }
 
-  updateData(data: DataSeries[], extent: DataExtent): void {
+  updateData(data: DataSeries[]): void {
     const totalLength = data.reduce((len: number, data: DataSeries) => {
       return len + data.points.length;
     }, 0);
@@ -117,7 +117,6 @@ export class WorkerLayer implements ILayer {
         type: MainToGuestEvent.SERIES_DATA_UPDATE,
         idsAndLengths,
         flattenedSeries: flattenedSeries.buffer,
-        extent,
       },
       [flattenedSeries.buffer]
     );

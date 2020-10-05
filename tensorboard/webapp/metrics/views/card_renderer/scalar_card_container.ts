@@ -304,7 +304,8 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
     this.dataSeries$ = dataSeriesWithSmoothedData$.pipe(
       map((series) => {
         const dataSeries: DataSeries[] = [];
-        for (const {id, points} of series.values()) {
+        for (const seriesId of series.keys()) {
+          const {id, points} = series.get(seriesId)!;
           dataSeries.push({id, points});
         }
         return dataSeries;
@@ -319,7 +320,9 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
       map(([dataSerieswithSmoothedData, colorMap]) => {
         const metadataMap: DataSeriesMetadataMap<ScalarCardSeriesMetadata> = {};
         for (const [runId, data] of dataSerieswithSmoothedData.entries()) {
-          const color = data.smoothOf ? colorMap[data.smoothOf] : '#333';
+          const color = data.smoothOf
+            ? colorMap[data.smoothOf]
+            : colorMap[runId];
 
           metadataMap[runId] = {
             id: runId,

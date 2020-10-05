@@ -1,5 +1,4 @@
 import {XAxisView, YAxisView} from './axis_view';
-import {ColorProvider} from './color_provider';
 import {Canvas3dRenderer, SvgRenderer} from './renderer';
 import {IRenderer} from './renderer_types';
 import {RootLayout} from './root_layout';
@@ -25,8 +24,7 @@ export class Layer implements ILayer {
   private readonly renderer: IRenderer;
   private readonly root: RootLayout;
   private readonly coordinator: Coordinator;
-  private readonly colorProivder = new ColorProvider();
-  private readonly visibilityMap: VisibilityMap = new Map();
+  private readonly metadataMap: DataSeriesMetadataMap = {};
   private readonly callbacks: LayerCallbacks;
 
   constructor(
@@ -61,8 +59,7 @@ export class Layer implements ILayer {
       container: option.container,
       renderer: this.renderer,
       coordinator: this.coordinator,
-      colorProvider: this.colorProivder,
-      visibilityMap: this.visibilityMap,
+      metadataMap: this.metadataMap,
     };
 
     this.root = createRootLayout(layouts, layoutConfig, option.domRect);
@@ -102,16 +99,18 @@ export class Layer implements ILayer {
 
   updateMetadata(metadataMap: DataSeriesMetadataMap) {
     let shouldRepaint = false;
-    Object.entries(metadataMap).forEach(([id, {color, visible}]) => {
+    Object.entries(metadataMap).forEach(([id, metadata]) => {
+      const existing = this.metadataMap[id];
       if (
-        color !== this.colorProivder.getColor(id) ||
-        this.visibilityMap.get(id) !== visible
+        !existing ||
+        metadata.color !== existing.color ||
+        metadata.visible !== existing.visible ||
+        metadata.opacity !== existing.opacity
       ) {
         shouldRepaint = true;
       }
 
-      this.colorProivder.setColor(id, color);
-      this.visibilityMap.set(id, visible);
+      this.metadataMap[id] = metadata;
     });
     if (shouldRepaint) {
       this.root.markAsPaintDirty();
@@ -131,7 +130,7 @@ export class Layer implements ILayer {
     this.scheduleRedraw();
   }
 
-  updateData(data: DataSeries[], extent: DataExtent) {
+  updateData(data: DataSeries[]) {
     this.root.setData(data);
     this.scheduleRedraw();
   }

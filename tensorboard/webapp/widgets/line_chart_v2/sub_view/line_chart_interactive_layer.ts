@@ -1,10 +1,8 @@
 import {
   CdkConnectedOverlay,
-  CloseScrollStrategy,
   ConnectedPosition,
   Overlay,
   RepositionScrollStrategy,
-  ScrollStrategy,
 } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
@@ -12,12 +10,13 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  HostBinding,
   Input,
   OnChanges,
   OnDestroy,
   Output,
+  TemplateRef,
   ViewChild,
-  HostBinding,
 } from '@angular/core';
 import {bisect} from 'd3-array';
 import {Subject, fromEvent, of, timer} from 'rxjs';
@@ -34,8 +33,8 @@ import {
 
 export interface TooltipDatum {
   id: string;
-  displayName: string;
-  color: string;
+  metadata: DataSeriesMetadataMap[string];
+  indClosest: number | null;
   point: {x: number; y: number} | null;
 }
 
@@ -53,6 +52,12 @@ export function scrollStrategyFactory(
 ): RepositionScrollStrategy {
   return overlay.scrollStrategies.reposition();
 }
+
+export interface TooltipTemplateContext {
+  data: TooltipDatum;
+}
+
+export type TooltipTemplate = TemplateRef<TooltipTemplateContext>;
 
 @Component({
   selector: 'line-chart-interactive-layer',
@@ -96,6 +101,9 @@ export class LineChartInteractiveLayerComponent
 
   @Input()
   domDimensions!: DomDimension;
+
+  @Input()
+  tooltipTemplate?: TooltipTemplate;
 
   @Output()
   onViewExtentChange = new EventEmitter<ViewExtent>();
@@ -416,30 +424,40 @@ export class LineChartInteractiveLayerComponent
     }
 
     this.cursoredData = this.seriesData
-      .filter(({id}) => {
-        return this.seriesMetadataMap[id]?.visible;
-      })
-      .map(({id, points}) => {
+      .map((seriesData) => {
         return {
-          id,
-          displayName: this.seriesMetadataMap[id]?.displayName || id,
-          point: this.findClosestPoint(points, this.cursorXLocation!),
-          color: this.seriesMetadataMap[id]?.color || '#f00',
+          seriesData,
+          metadata: this.seriesMetadataMap[seriesData.id],
         };
-      });
+      })
+      .filter(({metadata}) => {
+        return metadata && metadata.visible && !Boolean(metadata.aux);
+      })
+      .map(({seriesData, metadata}) => {
+        const index = this.findClosestIndex(
+          seriesData.points,
+          this.cursorXLocation!
+        );
+        return {
+          id: seriesData.id,
+          indClosest: index,
+          point: index !== null ? seriesData.points[index] : null,
+          metadata,
+        };
+      })
+      .filter(({indClosest}) => indClosest !== null);
     this.tooltipDislayAttached =
-      this.isCursorInside &&
-      this.cursoredData.some(({point}) => Boolean(point));
+      this.isCursorInside && Boolean(this.cursoredData.length);
   }
 
   /**
    * @param points DataSeries points; assumed to be sorted in x.
    * @param targetX target `x` location.
    */
-  private findClosestPoint(
+  private findClosestIndex(
     points: DataSeries['points'],
     targetX: number
-  ): {x: number; y: number} | null {
+  ): number | null {
     const right = Math.min(
       bisect(
         points.map(({x}) => x),
@@ -453,6 +471,6 @@ export class LineChartInteractiveLayerComponent
       Math.abs(points[left].x - targetX) -
         Math.abs(points[right].x - targetX) <=
       0;
-    return closerToLeft ? points[left] : points[right];
+    return closerToLeft ? left : right;
   }
 }

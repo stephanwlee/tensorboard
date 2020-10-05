@@ -28,26 +28,42 @@ import {WorkerLayer} from './lib/worker_layer';
 import {Scale, createScale} from './lib/scale';
 import {ILayer} from './lib/layer_types';
 import {isWebGl2Supported, isOffscreenCanvasSupported} from './lib/utils';
+import {TooltipTemplate} from './sub_view/line_chart_interactive_layer';
+
+export {TooltipTemplate} from './sub_view/line_chart_interactive_layer';
 
 let instId = 0;
 
-function calculateSeriesExtent(data: DataSeries[]): DataExtent {
+function calculateSeriesExtent(
+  data: DataSeries[],
+  metadataMap: DataSeriesMetadataMap,
+  ignoreOutlier: boolean
+): DataExtent {
   let xMin = Infinity;
   let xMax = -Infinity;
   let yMin = Infinity;
   let yMax = -Infinity;
 
-  if (!data.length) {
-    return {x: [0, 1], y: [0, 1]};
-  }
-
-  for (const {points} of data) {
+  for (const {id, points} of data) {
+    const meta = metadataMap[id];
+    if (meta.aux || !meta.visible) {
+      continue;
+    }
     for (let index = 0; index < points.length; index++) {
       xMin = Math.min(xMin, points[index].x);
       xMax = Math.max(xMax, points[index].x);
       yMin = Math.min(yMin, points[index].y);
       yMax = Math.max(yMax, points[index].y);
     }
+  }
+
+  if (
+    xMin === Infinity ||
+    xMax === -Infinity ||
+    yMin === Infinity ||
+    yMax === -Infinity
+  ) {
+    return {x: [0, 1], y: [0, 1]};
   }
 
   return {x: [xMin, xMax], y: [yMin, yMax]};
@@ -92,6 +108,7 @@ interface DomDimensions {
           [yScale]="yScale"
           [overlayRefContainer]="overlayTarget"
           [domDimensions]="domDimensions.main"
+          [tooltipTemplate]="tooltipTemplate"
           (onViewExtentChange)="onViewExtentChanged($event)"
           (onViewExtentReset)="onViewExtentReset()"
         ></line-chart-interactive-layer>
@@ -197,6 +214,9 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
 
   @Input()
   yScaleType: ScaleType = ScaleType.LINEAR;
+
+  @Input()
+  tooltipTemplate?: TooltipTemplate;
 
   readonly id = instId++;
 
@@ -388,13 +408,17 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       this.seriesData.forEach(({id}) => {
         metadata[id] = this.seriesMetadataMap[id];
       });
+      this.dataExtent = calculateSeriesExtent(
+        this.seriesData,
+        this.seriesMetadataMap,
+        false
+      );
       this.lineChart.updateMetadata(metadata);
     }
 
     if (this.isDataUpdated) {
       this.isDataUpdated = false;
-      this.dataExtent = calculateSeriesExtent(this.seriesData);
-      this.lineChart.updateData(this.seriesData, this.dataExtent);
+      this.lineChart.updateData(this.seriesData);
       this.viewExtent = this.getDefaultViewExtent() || this.viewExtent;
     }
 

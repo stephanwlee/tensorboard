@@ -29,7 +29,6 @@ tf_ts_library(
 tf_ts_library(
     name = "common",
     srcs = [
-        "color_provider.ts",
         "coordinator.ts",
         "renderer.ts",
         "renderer_types.ts",
@@ -39,6 +38,8 @@ tf_ts_library(
         ":scale",
         ":types",
         "//tensorboard/webapp/widgets/line_chart_v2/lib/fonts:roboto",
+        "@npm//@types/d3-color",
+        "@npm//d3-color",
         "@npm//three",
     ],
 )

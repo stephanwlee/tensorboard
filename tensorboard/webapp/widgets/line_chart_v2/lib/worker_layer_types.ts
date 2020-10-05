@@ -50,7 +50,6 @@ export interface SeriesUpdateMessage {
     length: number;
   }>;
   flattenedSeries: ArrayBufferLike;
-  extent: DataExtent;
 }
 
 export type SeriesMetadataMap = DataSeriesMetadataMap;

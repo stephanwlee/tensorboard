@@ -1,31 +1,32 @@
-import {ColorProvider} from './color_provider';
 import {Coordinator} from './coordinator';
 import {LayoutOption, LayoutRect} from './layout';
 import {IRenderer} from './renderer_types';
-import {DataInternalSeries, DataSeries, VisibilityMap} from './types';
+import {
+  DataInternalSeries,
+  DataSeries,
+  DataSeriesMetadataMap,
+  VisibilityMap,
+} from './types';
 
 export interface DrawableConfig extends LayoutOption {
-  colorProvider: ColorProvider;
-  renderer: IRenderer;
-  visibilityMap: VisibilityMap;
   coordinator: Coordinator;
+  metadataMap: DataSeriesMetadataMap;
+  renderer: IRenderer;
 }
 
 export abstract class Drawable extends LayoutRect {
   private paintDirty = true;
 
-  protected readonly colorProvider: ColorProvider;
+  protected readonly metadataMap: DataSeriesMetadataMap;
   protected readonly coordinator: Coordinator;
   protected readonly renderer: IRenderer;
-  protected readonly visibilityMap: VisibilityMap;
   private coordinateIdentifier: number | null = null;
 
   constructor(config: DrawableConfig, contentGrid?: LayoutRect[][]) {
     super(config, contentGrid);
-    this.colorProvider = config.colorProvider;
+    this.metadataMap = config.metadataMap;
     this.coordinator = config.coordinator;
     this.renderer = config.renderer;
-    this.visibilityMap = config.visibilityMap;
   }
 
   markAsPaintDirty() {

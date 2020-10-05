@@ -77,7 +77,7 @@ function createPortHandler(port: MessagePort, initMessage: InitMessage) {
           });
         }
 
-        lineChart.updateData(data, message.extent);
+        lineChart.updateData(data);
         break;
       }
       case MainToGuestEvent.SERIES_METADATA_CHANGED: {

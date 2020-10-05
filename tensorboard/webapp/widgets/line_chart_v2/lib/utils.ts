@@ -8,5 +8,5 @@ export function isWebGl2Supported(): boolean {
 }
 
 export function isOffscreenCanvasSupported(): boolean {
-  return false && self.hasOwnProperty('OffscreenCanvas');
+  return self.hasOwnProperty('OffscreenCanvas');
 }

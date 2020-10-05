@@ -26,7 +26,7 @@ export abstract class ILayer {
 
   abstract updateViewbox(extent: ViewExtent): void;
 
-  abstract updateData(data: DataSeries[], extent: DataExtent): void;
+  abstract updateData(data: DataSeries[]): void;
 
   abstract setXScaleType(type: ScaleType): void;
 

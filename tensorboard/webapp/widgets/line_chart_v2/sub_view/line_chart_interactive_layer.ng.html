@@ -7,7 +7,7 @@
         *ngIf="datum.point"
         [attr.cx]="getDomX(datum.point.x)"
         [attr.cy]="getDomY(datum.point.y)"
-        [attr.fill]="datum.color"
+        [attr.fill]="datum.metadata.color"
         r="4"
       ></circle>
     </ng-container>
@@ -53,15 +53,22 @@
       <ng-container
         *ngFor="let datum of cursoredData; trackBy: trackBySeriesName"
       >
-        <tr *ngIf="datum.point" class="tooltip-row">
-          <td class="circle">
-            <span [style.backgroundColor]="datum.color"></span>
-          </td>
-          <td>{{ datum.displayName }}</td>
-          <td>{{ datum.point.y }}</td>
-          <td>{{ datum.point.x }}</td>
-        </tr>
+        <ng-container
+          [ngTemplateOutlet]="tooltipTemplate ? tooltipTemplate : defaultTooltipRow"
+          [ngTemplateOutletContext]="{data: datum}"
+        ></ng-container>
       </ng-container>
     </tbody>
   </table>
+</ng-template>
+
+<ng-template #defaultTooltipRow let-rowData="data">
+  <tr class="tooltip-row">
+    <td class="circle">
+      <span [style.backgroundColor]="rowData.metadata.color"></span>
+    </td>
+    <td>{{ rowData.metadata.displayName }}</td>
+    <td>{{ rowData.point.y }}</td>
+    <td>{{ rowData.point.x }}</td>
+  </tr>
 </ng-template>
