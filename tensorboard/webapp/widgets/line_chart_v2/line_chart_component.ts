@@ -29,6 +29,7 @@ import {Scale, createScale} from './lib/scale';
 import {ILayer} from './lib/layer_types';
 import {isWebGl2Supported, isOffscreenCanvasSupported} from './lib/utils';
 import {TooltipTemplate} from './sub_view/line_chart_interactive_layer';
+import {mark} from '../perf/measurer';
 
 export {TooltipTemplate} from './sub_view/line_chart_interactive_layer';
 
@@ -132,6 +133,7 @@ interface DomDimensions {
   styles: [
     `
       :host {
+        contain: strict;
         height: 100%;
         width: 100%;
       }
@@ -309,7 +311,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
     const rendererType = this.getRendererType();
     const callbacks: LayerCallbacks = {
       onDrawEnd: () => {
-        console.log(performance.now());
+        mark();
       },
     };
 

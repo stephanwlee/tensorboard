@@ -17,15 +17,15 @@ async function waitAnimationFrame(times: number = 1) {
   }
 
   return new Promise((resolve) => {
+    console.time(`anim_${times}`);
+    console.timeEnd(`anim_${times}`);
     requestAnimationFrame(() => {
-      console.time(`anim_${times}`);
       waitAnimationFrame(times - 1).then(resolve, resolve);
-      console.timeEnd(`anim_${times}`);
     });
   });
 }
 
-export async function mark() {
-  await waitAnimationFrame(5);
+export async function mark(numWaitAnimationFrames = 5) {
+  await waitAnimationFrame(numWaitAnimationFrames);
   container.innerText = `${performance.now()}`;
 }

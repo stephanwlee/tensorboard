@@ -35,6 +35,7 @@ ng_module(
         "//tensorboard/webapp/widgets/line_chart_v2/lib:types",
         "//tensorboard/webapp/widgets/line_chart_v2/lib:worker_layer",
         "//tensorboard/webapp/widgets/line_chart_v2/sub_view",
+        "//tensorboard/webapp/widgets/perf",
         "@npm//@angular/common",
         "@npm//@angular/core",
     ],
