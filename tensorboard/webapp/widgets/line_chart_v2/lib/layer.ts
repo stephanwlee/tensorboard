@@ -124,13 +124,14 @@ export class Layer implements ILayer {
 
   private shouldRedraw = false;
   private scheduleRedraw() {
-    if (!this.shouldRedraw) {
-      this.shouldRedraw = true;
-      requestAnimationFrame(() => {
-        this.redraw();
-        this.shouldRedraw = false;
-      });
+    if (this.shouldRedraw) {
+      return;
     }
+    this.shouldRedraw = true;
+    requestAnimationFrame(() => {
+      this.redraw();
+      this.shouldRedraw = false;
+    });
   }
 
   private redraw() {

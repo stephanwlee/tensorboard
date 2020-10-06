@@ -277,11 +277,15 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       throw new Error('Invariant error: only expect one material on a line');
     }
 
+    // If a line is not cached and is not even visible, skip rendering!
+    if (!line && !visible) {
+      return;
+    }
+
     if (line) {
       const material = line.material as THREE.LineBasicMaterial;
 
       if (material.visible !== visible) {
-        line.visible = visible;
         material.visible = visible;
         material.needsUpdate = true;
       }
@@ -290,8 +294,9 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       }
     }
 
-    const vectors = new Array<THREE.Vector2>(paths.length / 2);
-    for (let index = 0; index < paths.length; index += 2) {
+    const length = paths.length / 2;
+    const vectors = new Array<THREE.Vector2>(length);
+    for (let index = 0; index < length * 2; index += 2) {
       vectors[index / 2] = new THREE.Vector2(paths[index], paths[index + 1]);
     }
 
@@ -348,12 +353,15 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       for (const vector of vectors) {
         values[index++] = vector.x;
         values[index++] = vector.y;
-        values[index++] = 0;
+        values[index++] = 1;
       }
       (lineGeometry as any).dynamic = true;
       positionAttributes.needsUpdate = true;
     }
     lineGeometry.setDrawRange(0, vectors.length);
+    // Need to update the bounding sphere so renderer does not skip rendering
+    // this object because it is outside of the camera viewpoint (frustum).
+    lineGeometry.computeBoundingSphere();
   }
 
   drawText(id: string, text: string, spec: TextSpec): void {

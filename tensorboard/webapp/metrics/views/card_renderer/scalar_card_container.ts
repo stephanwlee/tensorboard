@@ -97,6 +97,25 @@ function areSeriesDataListEqual(
   });
 }
 
+function areSeriesEqual(listA: DataSeries[], listB: DataSeries[]): boolean {
+  if (listA.length !== listB.length) {
+    return false;
+  }
+  return listA.every((listAVal, index) => {
+    const listBVal = listB[index];
+    const listAPoints = listAVal.points;
+    const listBPoints = listBVal.points;
+    return (
+      listAVal.id === listBVal.id &&
+      listAPoints.length === listBPoints.length &&
+      listAPoints.every((listAPoint, index) => {
+        const listBPoint = listBPoints[index];
+        return listAPoint.x === listBPoint.x && listAPoint.y === listBPoint.y;
+      })
+    );
+  });
+}
+
 interface ScalarCardSeriesMetadata extends DataSeriesMetadata {
   smoothOf: string | null;
   smoothedBy: string | null;
@@ -149,7 +168,6 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
   seriesDataList$?: Observable<SeriesDataList> = of([]);
   isPinned$?: Observable<boolean>;
   dataSeries$?: Observable<DataSeries[]>;
-  colorMap$?: Observable<Map<string, string>>;
   chartMetadataMap$?: Observable<
     DataSeriesMetadataMap<ScalarCardSeriesMetadata>
   >;
@@ -241,7 +259,6 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
         });
       }),
       startWith([]),
-      distinctUntilChanged(areSeriesDataListEqual),
       shareReplay(1)
     );
 
@@ -307,6 +324,7 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
         }
         return dataSeries;
       }),
+      distinctUntilChanged(areSeriesEqual),
       startWith([])
     );
 
@@ -333,16 +351,6 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
           } as ScalarCardSeriesMetadata;
         }
         return metadataMap;
-      })
-    );
-
-    this.colorMap$ = this.store.select(getRunColorMap).pipe(
-      map((colorObject) => {
-        const colorMap = new Map<string, string>();
-        for (const [key, value] of Object.entries(colorObject)) {
-          colorMap.set(key, value);
-        }
-        return colorMap;
       })
     );
 

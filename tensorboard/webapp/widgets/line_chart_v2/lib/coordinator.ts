@@ -123,7 +123,7 @@ export class THREECoordinator extends Coordinator {
     1000,
     1000,
     0,
-    -100,
+    0,
     100
   );
 

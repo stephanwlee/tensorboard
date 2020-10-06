@@ -11,13 +11,12 @@ import {
 } from '@angular/core';
 
 import {
-  ChartExportedLayouts,
   DataExtent,
   DataSeries,
   DataSeriesMetadataMap,
+  Extent,
   LayerCallbacks,
   LayerOption,
-  Rect,
   RendererType,
   ScaleType,
   ViewExtent,
@@ -34,6 +33,8 @@ import {mark} from '../perf/measurer';
 export {TooltipTemplate} from './sub_view/line_chart_interactive_layer';
 
 let instId = 0;
+
+const DEFAULT_EXTENT: Extent = {x: [0, 1], y: [0, 1]};
 
 function calculateSeriesExtent(
   data: DataSeries[],
@@ -64,10 +65,19 @@ function calculateSeriesExtent(
     yMin === Infinity ||
     yMax === -Infinity
   ) {
-    return {x: [0, 1], y: [0, 1]};
+    return DEFAULT_EXTENT;
   }
 
   return {x: [xMin, xMax], y: [yMin, yMax]};
+}
+
+function isExtentEqual(extentA: Extent, extentB: Extent): boolean {
+  return (
+    extentA.x[0] === extentB.x[0] &&
+    extentA.x[1] === extentB.x[1] &&
+    extentA.y[0] === extentB.y[0] &&
+    extentA.y[1] === extentB.y[1]
+  );
 }
 
 interface DomDimensions {
@@ -224,10 +234,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
 
   xScale: Scale = createScale(this.xScaleType);
   yScale: Scale = createScale(this.xScaleType);
-  viewExtent: ViewExtent = {
-    x: [0, 1],
-    y: [0, 1],
-  };
+  viewExtent: ViewExtent = DEFAULT_EXTENT;
 
   domDimensions: DomDimensions = {
     main: {width: 0, height: 0},
@@ -241,6 +248,8 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
   private isMetadataUpdated = false;
   // Must set the default view extent since it is an optional input.
   private isViewExtentUpdated = true;
+  private isDefaultViewExtentUpdated = false;
+  private maybeSetViewExtentToDefault = true;
 
   constructor(
     private readonly hostElRef: ElementRef,
@@ -253,7 +262,6 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       if (this.lineChart) {
         this.lineChart.setXScaleType(this.xScaleType);
       }
-      this.setDefaultViewExtent();
     }
 
     if (changes['yScaleType']) {
@@ -261,26 +269,21 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       if (this.lineChart) {
         this.lineChart.setYScaleType(this.yScaleType);
       }
-      this.setDefaultViewExtent();
     }
 
     if (changes['seriesData']) {
       this.isDataUpdated = true;
-      // Changing the data points resets the viewExtent.
-      this.isViewExtentUpdated = true;
     }
 
-    if (
-      changes['defaultViewExtent'] ||
-      changes['xScaleType'] ||
-      changes['yScaleType']
-    ) {
-      this.isViewExtentUpdated = true;
+    if (changes['defaultViewExtent']) {
+      this.isDefaultViewExtentUpdated = true;
     }
 
     if (changes['seriesMetadataMap']) {
       this.isMetadataUpdated = true;
     }
+
+    this.maybeSetViewExtentToDefault = this.shouldResetViewExtent(changes);
 
     this.updateProp();
   }
@@ -301,6 +304,41 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       y: 0,
       ...this.domDimensions.main,
     });
+    this.changeDetector.detectChanges();
+  }
+
+  private shouldResetViewExtent(changes: SimpleChanges): boolean {
+    if (changes['xScaleType'] || changes['yScaleType']) {
+      return true;
+    }
+
+    const prevDefaultExtent = this.getDefaultViewExtent();
+    const wasViewExtentChanged = !isExtentEqual(
+      prevDefaultExtent,
+      this.viewExtent
+    );
+
+    // Don't modify view extent if user has manually changed the view box.
+    if (wasViewExtentChanged) {
+      return false;
+    }
+
+    if (changes['seriesData']) {
+      return true;
+    }
+
+    const seriesMetadataChange = changes['seriesMetadataMap'];
+    if (seriesMetadataChange) {
+      const prevMetadataMap = seriesMetadataChange.previousValue;
+      for (const [id, metadata] of Object.entries(this.seriesMetadataMap)) {
+        const prevMetadata = prevMetadataMap && prevMetadataMap[id];
+        if (!prevMetadata || metadata.visible !== prevMetadata.visible) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   private initializeChart() {
@@ -407,26 +445,34 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
       this.seriesData.forEach(({id}) => {
         metadata[id] = this.seriesMetadataMap[id];
       });
-      this.dataExtent = calculateSeriesExtent(
-        this.seriesData,
-        this.seriesMetadataMap,
-        false
-      );
       this.lineChart.updateMetadata(metadata);
     }
 
     if (this.isDataUpdated) {
       this.isDataUpdated = false;
       this.lineChart.updateData(this.seriesData);
-      this.viewExtent = this.getDefaultViewExtent() || this.viewExtent;
     }
 
-    if (this.isViewExtentUpdated) {
+    let viewExtentChange =
+      this.isDefaultViewExtentUpdated ||
+      this.isViewExtentUpdated ||
+      this.maybeSetViewExtentToDefault;
+    if (this.isDefaultViewExtentUpdated && this.defaultViewExtent) {
+      this.viewExtent = this.defaultViewExtent;
+    } else if (this.maybeSetViewExtentToDefault) {
+      this.dataExtent = calculateSeriesExtent(
+        this.seriesData,
+        this.seriesMetadataMap,
+        false
+      );
+      this.viewExtent = this.getDefaultViewExtent();
+    }
+
+    if (viewExtentChange) {
+      this.isDefaultViewExtentUpdated = false;
       this.isViewExtentUpdated = false;
-      const extent = this.viewExtent || this.getDefaultViewExtent();
-      if (extent) {
-        this.lineChart.updateViewbox(extent);
-      }
+      this.maybeSetViewExtentToDefault = false;
+      this.lineChart.updateViewbox(this.viewExtent);
     }
   }
 
@@ -437,35 +483,17 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
   }
 
   onViewExtentReset() {
-    this.setDefaultViewExtent();
+    this.maybeSetViewExtentToDefault = true;
     this.updateProp();
   }
 
-  private setDefaultViewExtent() {
-    const nextExtent = this.getDefaultViewExtent();
-    if (!nextExtent) {
-      this.isViewExtentUpdated = Boolean(this.viewExtent);
-      return;
-    }
-
-    if (
-      this.viewExtent.x[0] !== nextExtent.x[0] ||
-      this.viewExtent.x[1] !== nextExtent.x[1] ||
-      this.viewExtent.y[0] !== nextExtent.y[0] ||
-      this.viewExtent.y[1] !== nextExtent.y[1]
-    ) {
-      this.viewExtent = nextExtent;
-      this.isViewExtentUpdated = true;
-    }
-  }
-
-  private getDefaultViewExtent(): ViewExtent | null {
+  private getDefaultViewExtent(): ViewExtent {
     if (this.defaultViewExtent) {
       return this.defaultViewExtent;
     }
 
     if (!this.dataExtent) {
-      return null;
+      return DEFAULT_EXTENT;
     }
 
     return {
