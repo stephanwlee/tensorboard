@@ -15,6 +15,7 @@ ng_module(
     ],
     deps = [
         "//tensorboard/webapp/types:ui",
+        "//tensorboard/webapp/widgets/perf",
         "@npm//@angular/core",
     ],
 )

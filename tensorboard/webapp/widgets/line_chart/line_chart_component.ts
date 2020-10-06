@@ -34,7 +34,9 @@ import {
   XAxisType,
   YAxisType,
 } from './polymer_interop_types';
+import {mark} from '../perf/measurer';
 
+let id = 0;
 @Component({
   selector: 'tb-line-chart',
   template: ``,
@@ -54,6 +56,8 @@ export class LineChartComponent<
   ExtraPointData extends NoReservedPointFields = {}
 > implements OnInit, OnChanges {
   private readonly element: VzLineChart2<SeriesMetadata, Point<ExtraPointData>>;
+
+  private readonly id = id++;
 
   /**
    * Directly forwarded properties.
@@ -161,6 +165,7 @@ export class LineChartComponent<
     }
 
     this.element.redraw();
+    mark();
   }
 
   private shouldUpdateSeriesData(changes: SimpleChanges) {
