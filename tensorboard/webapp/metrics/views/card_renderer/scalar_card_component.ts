@@ -131,8 +131,6 @@ export class ScalarCardComponent {
   lineChart?: LineChartComponent<Metadata, StepDatum>;
 
   @Input() dataSeries!: DataSeries[];
-  @Input() visibleSeries!: Set<string>;
-  @Input() colorMap!: Map<string, string>;
   @Input() chartMetadataMap!: DataSeriesMetadataMap;
 
   constructor(private readonly ref: ElementRef) {}

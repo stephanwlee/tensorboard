@@ -117,9 +117,7 @@ interface ScalarCardSeriesMetadata extends DataSeriesMetadata {
       [scalarSmoothing]="scalarSmoothing$ | async"
       [showFullSize]="showFullSize"
       [isPinned]="isPinned$ | async"
-      [colorMap]="colorMap$ | async"
       [dataSeries]="dataSeries$ | async"
-      [visibleSeries]="visibleSeries$ | async"
       [chartMetadataMap]="chartMetadataMap$ | async"
       (onFullSizeToggle)="onFullSizeToggle()"
       (onPinClicked)="pinStateChanged.emit($event)"
@@ -152,7 +150,6 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
   isPinned$?: Observable<boolean>;
   dataSeries$?: Observable<DataSeries[]>;
   colorMap$?: Observable<Map<string, string>>;
-  visibleSeries$?: Observable<Set<string>>;
   chartMetadataMap$?: Observable<
     DataSeriesMetadataMap<ScalarCardSeriesMetadata>
   >;
@@ -329,7 +326,7 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
             displayName: data.displayName,
             smoothedBy: data.smoothedBy,
             smoothOf: data.smoothOf,
-            visible: data.visible,
+            visible: true || data.visible,
             color,
             opacity: data.smoothedBy ? 0.4 : 1,
             aux: Boolean(data.smoothedBy),

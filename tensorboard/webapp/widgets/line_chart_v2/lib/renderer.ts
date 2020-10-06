@@ -281,7 +281,9 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       const material = line.material as THREE.LineBasicMaterial;
 
       if (material.visible !== visible) {
+        line.visible = visible;
         material.visible = visible;
+        material.needsUpdate = true;
       }
       if (!visible) {
         return;
@@ -297,11 +299,6 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       const material = line.material as THREE.LineBasicMaterial;
       const currentColor = material.color;
 
-      if (material.visible !== visible) {
-        material.visible = visible;
-        material.needsUpdate = true;
-      }
-
       if (material.linewidth !== width) {
         material.linewidth = width;
         material.needsUpdate = true;
@@ -309,11 +306,6 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
 
       if (!currentColor.equals(newColor)) {
         material.color.set(newColor);
-        material.needsUpdate = true;
-      }
-
-      if (material.opacity !== opacity) {
-        material.opacity = opacity;
         material.needsUpdate = true;
       }
 
@@ -329,19 +321,16 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
       const material = new THREE.LineBasicMaterial({
         color: newColor,
         linewidth: width,
-        opacity,
       });
       line = new THREE.Line(geometry, material);
       this.currentRenderGroup.set(id, {
         data: vectors,
         cacheable: line,
       });
-      this.scene.add(line);
-
-      (line.material as THREE.LineBasicMaterial).color.set(color);
-      line.visible = visible;
+      material.visible = visible;
       geometry.setDrawRange(0, vectors.length);
       line.geometry.setFromPoints(vectors);
+      this.scene.add(line);
     }
   }
 
@@ -352,14 +341,18 @@ export class Canvas3dRenderer extends Renderer<THREE.Object3D, any> {
     let index = 0;
     const positionAttributes = lineGeometry.attributes
       .position as THREE.BufferAttribute;
-    const values = positionAttributes.array as number[];
-    for (const vector of vectors) {
-      values[index++] = vector.x;
-      values[index++] = vector.y;
-      values[index++] = 0;
+    if (positionAttributes.count !== vectors.length * 3) {
+      lineGeometry.setFromPoints(vectors);
+    } else {
+      const values = positionAttributes.array as number[];
+      for (const vector of vectors) {
+        values[index++] = vector.x;
+        values[index++] = vector.y;
+        values[index++] = 0;
+      }
+      (lineGeometry as any).dynamic = true;
+      positionAttributes.needsUpdate = true;
     }
-    (lineGeometry as any).dynamic = true;
-    positionAttributes.needsUpdate = true;
     lineGeometry.setDrawRange(0, vectors.length);
   }
 
