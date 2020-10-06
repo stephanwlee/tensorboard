@@ -17,15 +17,23 @@ async function waitAnimationFrame(times: number = 1) {
   }
 
   return new Promise((resolve) => {
-    console.time(`anim_${times}`);
-    console.timeEnd(`anim_${times}`);
     requestAnimationFrame(() => {
       waitAnimationFrame(times - 1).then(resolve, resolve);
     });
   });
 }
 
+let startTime: number = 0;
+
+export async function start() {
+  console.time(`start_marker`);
+  console.timeEnd(`start_marker`);
+  startTime = performance.now();
+}
+
 export async function mark(numWaitAnimationFrames = 5) {
   await waitAnimationFrame(numWaitAnimationFrames);
-  container.innerText = `${performance.now()}`;
+  console.time(`end_marker`);
+  console.timeEnd(`end_marker`);
+  container.innerText = `${performance.now() - startTime}`;
 }

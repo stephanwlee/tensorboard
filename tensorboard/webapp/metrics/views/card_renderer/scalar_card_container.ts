@@ -326,7 +326,7 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
             displayName: data.displayName,
             smoothedBy: data.smoothedBy,
             smoothOf: data.smoothOf,
-            visible: true || data.visible,
+            visible: data.visible,
             color,
             opacity: data.smoothedBy ? 0.4 : 1,
             aux: Boolean(data.smoothedBy),

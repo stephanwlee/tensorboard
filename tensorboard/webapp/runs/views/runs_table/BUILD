@@ -40,6 +40,7 @@ ng_module(
         "//tensorboard/webapp/runs/store:types",
         "//tensorboard/webapp/types",
         "//tensorboard/webapp/types:ui",
+        "//tensorboard/webapp/widgets/perf",
         "//tensorboard/webapp/widgets/range_input",
         "@npm//@angular/common",
         "@npm//@angular/core",

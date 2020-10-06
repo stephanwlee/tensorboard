@@ -63,6 +63,7 @@ import {
 import {RunsTableColumn, RunTableItem} from './types';
 
 /** @typehack */ import * as _typeHackStore from '@ngrx/store';
+import {start} from '../../../widgets/perf/measurer';
 
 const getRunsLoading = createSelector<
   State,
@@ -456,6 +457,7 @@ export class RunsTableContainer implements OnInit {
   }
 
   onRunSelectionToggle(item: RunTableItem) {
+    start();
     this.store.dispatch(
       runSelectionToggled({
         experimentIds: this.experimentIds,
@@ -470,6 +472,7 @@ export class RunsTableContainer implements OnInit {
     const {items} = event;
     const runIds = items.map(({run}) => run.id);
 
+    start();
     this.store.dispatch(
       runPageSelectionToggled({
         experimentIds: this.experimentIds,
