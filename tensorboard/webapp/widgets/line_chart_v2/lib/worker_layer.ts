@@ -135,9 +135,8 @@ export class WorkerLayer implements ILayer {
 
   private onMessageFromWorker(message: GuestToMainMessage) {
     switch (message.type) {
-      case GuestToMainType.LAYOUT_CHANGED: {
-        this.callbacks.onLayout(message.layouts);
-        break;
+      case GuestToMainType.ON_REDRAW_END: {
+        this.callbacks.onDrawEnd();
       }
     }
   }

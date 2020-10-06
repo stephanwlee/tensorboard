@@ -82,19 +82,6 @@ export class Layer implements ILayer {
     // If the DOM size changes, it is likely that we need to redraw.
     this.root.markAsPaintDirty();
     this.scheduleRedraw();
-    this.notifyLayout();
-  }
-
-  private notifyLayout() {
-    const lineView = this.root.findChildByClass(SeriesLineView);
-    const yAxis = this.root.findChildByClass(YAxisView);
-    const xAxis = this.root.findChildByClass(XAxisView);
-
-    this.callbacks.onLayout({
-      xAxis: xAxis?.getLayoutRect() ?? null,
-      yAxis: yAxis?.getLayoutRect() ?? null,
-      lines: lineView?.getLayoutRect() ?? null,
-    });
   }
 
   updateMetadata(metadataMap: DataSeriesMetadataMap) {
@@ -149,5 +136,9 @@ export class Layer implements ILayer {
   private redraw() {
     this.root.redraw();
     this.renderer.render();
+
+    requestAnimationFrame(() => {
+      this.callbacks.onDrawEnd();
+    });
   }
 }

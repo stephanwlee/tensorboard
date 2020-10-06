@@ -220,8 +220,6 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
 
   readonly id = instId++;
 
-  chartLayout: ChartExportedLayouts | null = null;
-
   xScale: Scale = createScale(this.xScaleType);
   yScale: Scale = createScale(this.xScaleType);
   viewExtent: ViewExtent = {
@@ -310,9 +308,8 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
 
     const rendererType = this.getRendererType();
     const callbacks: LayerCallbacks = {
-      onLayout: (layouts) => {
-        this.chartLayout = layouts;
-        this.changeDetector.detectChanges();
+      onDrawEnd: () => {
+        console.log(performance.now());
       },
     };
 

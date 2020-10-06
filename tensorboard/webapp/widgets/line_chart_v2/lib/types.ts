@@ -78,7 +78,7 @@ export interface ChartExportedLayouts {
 }
 
 export interface LayerCallbacks {
-  onLayout(layouts: ChartExportedLayouts): void;
+  onDrawEnd(): void;
 }
 
 export interface BaseLayerOption {

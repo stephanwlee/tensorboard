@@ -73,12 +73,11 @@ export type MainToGuestMessage =
   | SeriesMetadataChangedeMessage;
 
 export enum GuestToMainType {
-  LAYOUT_CHANGED,
+  ON_REDRAW_END,
 }
 
-export interface LayoutChangedMessage {
-  type: GuestToMainType.LAYOUT_CHANGED;
-  layouts: ChartExportedLayouts;
+export interface RedrawEndMessage {
+  type: GuestToMainType.ON_REDRAW_END;
 }
 
-export type GuestToMainMessage = LayoutChangedMessage;
+export type GuestToMainMessage = RedrawEndMessage;

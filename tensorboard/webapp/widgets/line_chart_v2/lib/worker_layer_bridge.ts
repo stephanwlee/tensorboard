@@ -26,9 +26,9 @@ function createPortHandler(port: MessagePort, initMessage: InitMessage) {
   } = initMessage;
 
   const lineChartCallbacks = {
-    onLayout: (layouts: ChartExportedLayouts) => {
+    onDrawEnd: () => {
       port.postMessage({
-        type: GuestToMainType.LAYOUT_CHANGED,
+        type: GuestToMainType.ON_REDRAW_END,
         layouts,
       });
     },
