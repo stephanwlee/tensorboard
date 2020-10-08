@@ -28,6 +28,7 @@ import {RunColorScale} from '../../../types/ui';
 import * as actions from '../../actions';
 import {PluginType} from '../../data_source';
 import {CardId} from '../../types';
+import {start} from '../../../widgets/perf/measurer';
 
 // Since vz-line-chart only updates every 350ms, it does not make sense to
 // update the Polymer component more frequently.
@@ -88,6 +89,7 @@ export class CardViewContainer {
   }
 
   onPinStateChanged() {
+    start();
     this.store.dispatch(actions.cardPinStateToggled({cardId: this.cardId}));
   }
 }

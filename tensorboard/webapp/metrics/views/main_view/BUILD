@@ -96,6 +96,7 @@ ng_module(
         "//tensorboard/webapp/types:ui",
         "//tensorboard/webapp/util:string",
         "//tensorboard/webapp/util:types",
+        "//tensorboard/webapp/widgets/perf",
         "@npm//@angular/core",
         "@npm//@ngrx/store",
         "@npm//rxjs",

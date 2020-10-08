@@ -18,6 +18,7 @@ import {map} from 'rxjs/operators';
 
 import {State} from '../../../app_state';
 import {getMetricsTagFilter} from '../../store';
+import {start} from '../../../widgets/perf/measurer';
 
 /** @typehack */ import * as _typeHackRxjs from 'rxjs';
 
@@ -45,6 +46,7 @@ export class MainViewContainer {
   );
 
   onSettingsButtonClicked() {
+    start();
     this.isSidepaneOpen = !this.isSidepaneOpen;
   }
 

@@ -30,6 +30,7 @@ ng_module(
         "//tensorboard/webapp/metrics/actions",
         "//tensorboard/webapp/metrics/data_source",
         "//tensorboard/webapp/types:ui",
+        "//tensorboard/webapp/widgets/perf",
         "@npm//@angular/common",
         "@npm//@angular/core",
         "@npm//@ngrx/store",
