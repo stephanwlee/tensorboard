@@ -31,4 +31,6 @@ export abstract class ILayer {
   abstract setXScaleType(type: ScaleType): void;
 
   abstract setYScaleType(type: ScaleType): void;
+
+  dispose(): void {}
 }

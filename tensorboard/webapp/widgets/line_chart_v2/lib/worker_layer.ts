@@ -9,7 +9,7 @@ import {
   ScaleType,
   ViewExtent,
 } from './types';
-import {getWorker} from './worker';
+import {getWorkerInstance, WorkerLike} from './worker_allocator';
 import {
   GuestToMainMessage,
   GuestToMainType,
@@ -21,8 +21,9 @@ import {
 import {ILayer} from './layer_types';
 
 export class WorkerLayer implements ILayer {
-  private readonly toWorkerChannel: any;
+  private readonly txMessagePort: MessagePort;
   private readonly callbacks: LayerCallbacks;
+  private readonly workerInstance: WorkerLike;
 
   constructor(id: number, option: LayerOption, layouts: LayoutChildren) {
     this.callbacks = option.callbacks;
@@ -35,12 +36,12 @@ export class WorkerLayer implements ILayer {
     channel.port1.onmessage = (message) => {
       this.onMessageFromWorker(message.data as GuestToMainMessage);
     };
-    this.toWorkerChannel = channel.port1;
+    this.txMessagePort = channel.port1;
 
     const canvas = (option.container as HTMLCanvasElement).transferControlToOffscreen();
 
-    const worker = getWorker('chart_worker.js');
-    worker.postMessage(
+    this.workerInstance = getWorkerInstance('chart_worker.js');
+    this.workerInstance.postMessage(
       {
         type: MainToGuestEvent.INIT,
         workerId: id,
@@ -54,6 +55,11 @@ export class WorkerLayer implements ILayer {
       } as InitMessage,
       [canvas, channel.port2]
     );
+  }
+
+  dispose() {
+    this.workerInstance.free();
+    this.txMessagePort.close();
   }
 
   setXScaleType(type: ScaleType) {
@@ -127,9 +133,9 @@ export class WorkerLayer implements ILayer {
     transfer?: Transferable[]
   ) {
     if (transfer) {
-      this.toWorkerChannel.postMessage(message, transfer);
+      this.txMessagePort.postMessage(message, transfer);
     } else {
-      this.toWorkerChannel.postMessage(message);
+      this.txMessagePort.postMessage(message);
     }
   }
 

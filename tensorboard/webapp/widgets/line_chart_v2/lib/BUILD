@@ -91,7 +91,7 @@ tf_ts_library(
     deps = [
         ":lib",
         ":types",
-        ":worker",
+        ":worker_allocator",
         ":worker_layer_types",
     ],
 )
@@ -105,8 +105,17 @@ tf_ts_library(
 )
 
 tf_ts_library(
+    name = "worker_allocator",
+    srcs = ["worker_allocator.ts"],
+    deps = [
+        ":worker",
+    ],
+)
+
+tf_ts_library(
     name = "worker",
     srcs = ["worker.ts"],
+    visibility = ["//visibility:private"],
 )
 
 tf_ts_library(

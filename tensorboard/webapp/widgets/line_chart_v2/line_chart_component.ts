@@ -8,6 +8,7 @@ import {
   ViewChild,
   OnChanges,
   AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 
 import {
@@ -189,7 +190,7 @@ interface DomDimensions {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LineChartComponent implements AfterViewInit, OnChanges {
+export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   readonly RendererType = RendererType;
 
   @ViewChild('main', {static: true, read: ElementRef})
@@ -398,6 +399,12 @@ export class LineChartComponent implements AfterViewInit, OnChanges {
     this.lineChart = new klass(this.id, params, [
       [{type: ViewType.SERIES_LINE_VIEW, children: []}],
     ]);
+  }
+
+  ngOnDestroy() {
+    if (this.lineChart) {
+      this.lineChart.dispose();
+    }
   }
 
   getRendererType(): RendererType {

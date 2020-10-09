@@ -67,6 +67,8 @@ export class Layer implements ILayer {
     this.resize(option.domRect);
   }
 
+  dispose(): void {}
+
   setXScaleType(type: ScaleType) {
     this.coordinator.setXScale(createScale(type));
   }
