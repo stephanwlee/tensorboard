@@ -112,6 +112,7 @@ export function fetchAndParseGraphData(
       );
     });
 }
+
 /**
  * Parse a file object in a streaming fashion line by line (or custom delim).
  * Can handle very large files.
@@ -127,37 +128,41 @@ export function streamParse(
   chunkSize: number = 1000000,
   delim: string = '\n'
 ): Promise<boolean> {
-  return new Promise<boolean>(function (resolve, reject) {
-    function readChunk(oldData: string, newData: string, offset: number) {
-      const doneReading = offset >= arrayBuffer.byteLength;
-      const parts = newData.split(delim);
-      parts[0] = oldData + parts[0];
-      // The last part may be part of a longer string that got cut off
-      // due to the chunking.
-      const remainder = doneReading ? '' : parts.pop();
-      for (let part of parts) {
-        try {
+  const blob = new Blob([arrayBuffer]);
+  const queueingStrategy = new CountQueuingStrategy({highWaterMark: 1});
+  let remainder: string = '';
+  const writable = new WritableStream<string>(
+    {
+      write(chunk) {
+        const parts = chunk.split(delim);
+        parts[0] = remainder + parts[0];
+        // The last part may be part of a longer string that got cut off
+        // due to the chunking.
+        remainder = parts.pop();
+        for (let part of parts) {
           callback(part);
-        } catch (e) {
-          reject(e);
-          return;
         }
+      },
+      close() {
+        callback(remainder);
+      },
+      abort(err) {
+        console.log('Sink error:', err);
+      },
+    },
+    queueingStrategy
+  );
+  return blob
+    .stream()
+    .pipeThrough(new TextDecoderStream('utf-8'))
+    .pipeTo(writable)
+    .then(
+      () => true,
+      (e) => {
+        console.log(e);
+        return false;
       }
-      if (doneReading) {
-        resolve(true);
-        return;
-      }
-      const nextChunk = new Blob([
-        arrayBuffer.slice(offset, offset + chunkSize),
-      ]);
-      const file = new FileReader();
-      file.onload = function (e: any) {
-        readChunk(remainder, e.target.result, offset + chunkSize);
-      };
-      file.readAsText(nextChunk);
-    }
-    readChunk('', '', 0);
-  });
+    );
 }
 /**
  * Since proto-txt doesn't explicitly say whether an attribute is repeated
@@ -297,6 +302,7 @@ function parsePbtxtFile(
     if (!line) {
       return;
     }
+    // return;
     line = line.trim();
     switch (line[line.length - 1]) {
       case '{': // create new object
