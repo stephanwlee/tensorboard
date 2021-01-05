@@ -413,7 +413,7 @@ export interface HierarchyParams {
 }
 export const DefaultHierarchyParams = {
   verifyTemplate: true,
-  seriesNodeMinSize: 5,
+  seriesNodeMinSize: 2,
   seriesMap: {},
   rankDirection: 'BT',
   useGeneralizedSeriesPatterns: false,
@@ -455,6 +455,16 @@ export function build(
     )
     .then(() => {
       return tf_graph_util.runAsyncTask(
+        'Finding similar subgraphs',
+        30,
+        () => {
+          h.templates = template.detect(h, params.verifyTemplate);
+        },
+        tracker
+      );
+    })
+    .then(() => {
+      return tf_graph_util.runAsyncTask(
         'Detect series',
         20,
         () => {
@@ -478,16 +488,6 @@ export function build(
         30,
         () => {
           addEdges(h, graph, seriesNames);
-        },
-        tracker
-      );
-    })
-    .then(() => {
-      return tf_graph_util.runAsyncTask(
-        'Finding similar subgraphs',
-        30,
-        () => {
-          h.templates = template.detect(h, params.verifyTemplate);
         },
         tracker
       );
@@ -814,7 +814,7 @@ function groupSeries(
   useGeneralizedSeriesPatterns: boolean
 ) {
   let metagraph = metanode.metagraph;
-  _.each(metagraph.nodes(), (n) => {
+  for (const n of metagraph.nodes()) {
     let child = metagraph.node(n);
     if (child.type === tf_graph.NodeType.META) {
       groupSeries(
@@ -826,8 +826,8 @@ function groupSeries(
         useGeneralizedSeriesPatterns
       );
     }
-  });
-  let clusters = clusterNodes(metagraph);
+  }
+  const clusters = clusterNodes(metagraph);
   const detectSeriesMethod = useGeneralizedSeriesPatterns
     ? detectSeriesAnywhereInNodeName
     : detectSeriesUsingNumericSuffixes;
@@ -908,37 +908,33 @@ function groupSeries(
     });
   });
 }
+
+interface Cluster {
+  [clusterId: string]: {
+    nodeType: NodeType;
+    members: string[];
+  };
+}
+
 /** cluster op-nodes with similar op */
-function clusterNodes(
-  metagraph: graphlib.Graph
-): {
-  [clusterId: string]: string[];
-} {
-  let result: {
-    [clusterId: string]: string[];
-  } = {};
-  return _.reduce(
-    metagraph.nodes(),
-    (
-      clusters: {
-        [clusterId: string]: string[];
-      },
-      n: string
-    ) => {
-      let child = metagraph.node(n);
-      if (child.type === NodeType.META) {
-        // skip metanodes
-        return clusters;
-      }
-      let template = (child as any).op;
-      if (template) {
-        clusters[template] = clusters[template] || [];
-        clusters[template].push(child.name);
-      }
-      return clusters;
-    },
-    result
-  );
+function clusterNodes(metagraph: graphlib.Graph): Cluster {
+  return metagraph.nodes().reduce((clusters: Cluster, n: string) => {
+    let child = metagraph.node(n);
+    let template =
+      child.type === NodeType.META ? child.templateId : (child as any).op;
+    if (template) {
+      clusters[template] = clusters[template] || {
+        nodeType: child.type,
+        members: [],
+      };
+      clusters[template].members.push(child.name);
+    }
+    return clusters;
+  }, {} as Cluster);
+}
+
+interface SeriesMap {
+  [seriesName: string]: SeriesNode;
 }
 /**
  * For each cluster of op-nodes based op type, try to detect groupings.
@@ -950,21 +946,16 @@ function clusterNodes(
  * @return A dictionary from series name => seriesNode
  */
 function detectSeriesUsingNumericSuffixes(
-  clusters: {
-    [clusterId: string]: string[];
-  },
+  clusters: Cluster,
   metagraph: graphlib.Graph,
   graphOptions: any
-): {
-  [seriesName: string]: SeriesNode;
-} {
-  let seriesDict: {
-    [seriesName: string]: SeriesNode;
-  } = {};
-  _.each(clusters, function (members, clusterId: string) {
+): SeriesMap {
+  let seriesDict: SeriesMap = {};
+  Object.entries(clusters).forEach(([clusterId, {members, nodeType}]) => {
     if (members.length <= 1) {
       return;
     } // isolated clusters can't make series
+
     /** @type {Object}  A dictionary mapping seriesName to seriesInfoArray,
      * which is an array that contains objects with name, id, prefix, suffix,
      * and parent properties.
@@ -997,6 +988,7 @@ function detectSeriesUsingNumericSuffixes(
       let seriesName = getSeriesNodeName(prefix, suffix, parent);
       candidatesDict[seriesName] = candidatesDict[seriesName] || [];
       let seriesNode = createSeriesNode(
+        nodeType,
         prefix,
         suffix,
         parent,
@@ -1060,18 +1052,12 @@ function detectSeriesUsingNumericSuffixes(
  * @return A dictionary from series name => seriesNode
  */
 function detectSeriesAnywhereInNodeName(
-  clusters: {
-    [clusterId: string]: string[];
-  },
+  clusters: Cluster,
   metagraph: graphlib.Graph,
   graphOptions: any
-): {
-  [seriesName: string]: SeriesNode;
-} {
-  let seriesDict: {
-    [seriesName: string]: SeriesNode;
-  } = {};
-  _.each(clusters, function (members, clusterId: string) {
+): SeriesMap {
+  let seriesDict: SeriesMap = {};
+  Object.entries(clusters).forEach(([clusterId, {members, nodeType}]) => {
     if (members.length <= 1) {
       return;
     } // isolated clusters can't make series
@@ -1116,6 +1102,7 @@ function detectSeriesAnywhereInNodeName(
         forwardDict[seriesName] = forwardDict[seriesName];
         if (!forwardDict[seriesName]) {
           forwardDict[seriesName] = createSeriesNode(
+            nodeType,
             prefix,
             suffix,
             parent,
@@ -1136,6 +1123,7 @@ function detectSeriesAnywhereInNodeName(
         forwardDict[seriesName] = forwardDict[seriesName];
         if (!forwardDict[seriesName]) {
           forwardDict[seriesName] = createSeriesNode(
+            nodeType,
             prefix,
             suffix,
             parent,
@@ -1169,6 +1157,7 @@ function detectSeriesAnywhereInNodeName(
       const leaf = namepath[namepath.length - 1];
       const parent = namepath.slice(0, namepath.length - 1).join('/');
       var seriesNode = createSeriesNode(
+        nodeType,
         forwardDict[seriesName].prefix,
         forwardDict[seriesName].suffix,
         parent,
@@ -1250,6 +1239,7 @@ function addSeriesToDict(
       seriesNodes[seriesNodes.length - 1].clusterId
     );
     let curSeriesNode = createSeriesNode(
+      seriesNodes[0].type,
       seriesNodes[0].prefix,
       seriesNodes[0].suffix,
       seriesNodes[0].parent,

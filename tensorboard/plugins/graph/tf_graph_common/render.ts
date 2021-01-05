@@ -647,6 +647,7 @@ export class RenderGraphInfo {
     _.each(libraryMetanode.metagraph.nodes(), (nodeName) => {
       const node = libraryMetanode.metagraph.node(nodeName);
       switch (node.type) {
+        case NodeType.META_SERIES:
         case NodeType.META:
           // Recursively duplicate the metanode.
           const newNode = this.cloneFunctionLibraryMetanodeHelper(
@@ -1816,6 +1817,7 @@ function setGraphDepth(graph: graphlib.Graph, depth: number) {
     child.expanded = depth > 1; // set all child of depth 1 to collapsed
     if (depth > 0) {
       switch (child.node.type) {
+        case NodeType.META_SERIES:
         case NodeType.META:
         case NodeType.SERIES:
           setGroupNodeDepth(<RenderGroupNodeInfo>child, depth - 1);

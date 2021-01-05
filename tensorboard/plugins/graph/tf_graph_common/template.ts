@@ -31,19 +31,24 @@ export function detect(
 ): {
   [templateId: string]: string[];
 } {
+  console.time('clusterSimilarSubgraphs');
   // In any particular subgraph, there are either
   // - leaf nodes (which do not have subgraph)
   // - metanode nodes - some of them have only one member (singular metanode)
   //                    and some have multiple members (non-singular metanode)
   // First, generate a nearest neighbor hash of metanode nodes.
   let nnGroups = clusterSimilarSubgraphs(h);
+  console.timeEnd('clusterSimilarSubgraphs');
   // For each metanode, compare its subgraph (starting from shallower groups)
   // and assign template id.
+  console.time('groupTemplateAndAssignId');
   let templates = groupTemplateAndAssignId(nnGroups, verifyTemplate);
+  console.timeEnd('groupTemplateAndAssignId');
   // Sort the templates by minimum level in the graph at which they appear,
   // as this leads to optimal setting of the colors of each template for
   // maximum differentiation.
-  return <
+  console.time('obj');
+  const obj = <
     {
       [templateId: string]: string[];
     }
@@ -53,6 +58,8 @@ export function detect(
       obj[key] = templates[key];
       return obj;
     }, {});
+  console.timeEnd('obj');
+  return obj;
 }
 /**
  * @return Unique string for a metanode based on depth, |V|, |E| and
@@ -138,12 +145,12 @@ function groupTemplateAndAssignId(nnGroups, verifyTemplate) {
       nodes: string[];
     };
   } = {};
-  return _.reduce(
+  const ret = _.reduce(
     nnGroups,
     function (templates, nnGroupPair) {
-      let signature = nnGroupPair[0],
-        nnGroup = nnGroupPair[1].nodes,
-        clusters = [];
+      const signature = nnGroupPair[0];
+      const nnGroup = nnGroupPair[1].nodes;
+      const clusters = [];
       nnGroup.forEach(function (metanode) {
         // check with each existing cluster
         for (let i = 0; i < clusters.length; i++) {
@@ -178,6 +185,7 @@ function groupTemplateAndAssignId(nnGroups, verifyTemplate) {
     },
     result
   );
+  return ret;
 }
 function sortNodes(names: string[], graph: graphlib.Graph, prefix: string) {
   return _.sortBy(names, [
@@ -190,41 +198,13 @@ function sortNodes(names: string[], graph: graphlib.Graph, prefix: string) {
   ]);
 }
 function isSimilarSubgraph(g1: graphlib.Graph, g2: graphlib.Graph) {
-  if (!hasSimilarDegreeSequence(g1, g2)) {
-    return false;
-  }
-  // if we want to skip, just return true here.
-  // return true;
-  // Verify sequence by running DFS
-  let g1prefix = (g1.graph() as any).name;
-  let g2prefix = (g2.graph() as any).name;
-  let visited1 = {};
-  let visited2 = {};
-  let stack = [];
-  /**
-   * push sources or successors into the stack
-   * if the visiting pattern has been similar.
-   */
-  function stackPushIfNotDifferent(n1, n2) {
-    let sub1 = n1.substr(g1prefix.length),
-      sub2 = n2.substr(g2prefix.length);
-    /* tslint:disable */
-    if (visited1[sub1] ^ visited2[sub2]) {
-      console.warn(
-        'different visit pattern',
-        '[' + g1prefix + ']',
-        sub1,
-        '[' + g2prefix + ']',
-        sub2
-      );
-      return true;
-    }
-    /* tslint:enable */
-    if (!visited1[sub1]) {
-      // implied && !visited2[sub2]
-      visited1[sub1] = visited2[sub2] = true;
-      stack.push({n1: n1, n2: n2});
-    }
+  // console.time('hasSimilarDegreeSequence');
+  // if (!hasSimilarDegreeSequence(g1, g2)) {
+  //   return false;
+  // }
+  // console.timeEnd('hasSimilarDegreeSequence');
+
+  if (g1.nodeCount() !== g2.nodeCount() || g1.edgeCount() !== g2.edgeCount()) {
     return false;
   }
   // check if have same # of sources then sort and push
@@ -236,8 +216,45 @@ function isSimilarSubgraph(g1: graphlib.Graph, g2: graphlib.Graph) {
     /* tslint:enable */
     return false;
   }
-  sources1 = sortNodes(sources1 as any, g1, g1prefix);
-  sources2 = sortNodes(sources2 as any, g2, g2prefix);
+
+  // if we want to skip, just return true here.
+  // return true;
+  // Verify sequence by running DFS
+  let g1prefix = (g1.graph() as any).name;
+  let g2prefix = (g2.graph() as any).name;
+  let visited1 = new Set<boolean>();
+  let visited2 = new Set<boolean>();
+  let stack = [];
+  /**
+   * push sources or successors into the stack
+   * if the visiting pattern has been similar.
+   */
+  function stackPushIfNotDifferent(n1, n2) {
+    let sub1 = n1.substr(g1prefix.length),
+      sub2 = n2.substr(g2prefix.length);
+    /* tslint:disable */
+    if (visited1.has(sub1) !== visited2.has(sub2)) {
+      console.warn(
+        'different visit pattern',
+        '[' + g1prefix + ']',
+        sub1,
+        '[' + g2prefix + ']',
+        sub2
+      );
+      return true;
+    }
+    /* tslint:enable */
+    if (!visited1.has(sub1)) {
+      // implied && !visited2[sub2]
+      visited1.add(sub1);
+      visited2.add(sub2);
+      // visited1[sub1] = visited2[sub2] = true;
+      stack.push({n1: n1, n2: n2});
+    }
+    return false;
+  }
+  sources1 = sortNodes(sources1, g1, g1prefix);
+  sources2 = sortNodes(sources2, g2, g2prefix);
   for (let i = 0; i < sources1.length; i++) {
     let different = stackPushIfNotDifferent(sources1[i], sources2[i]);
     if (different) {

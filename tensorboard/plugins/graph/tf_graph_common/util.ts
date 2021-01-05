@@ -23,12 +23,14 @@ const ASYNC_TASK_DELAY = 20;
 /**
  * Measure and log a synchronous task.
  */
-export function time<T>(msg: string, task: () => T) {
+export function time<T>(msg: string, task: () => T): T {
+  console.time(msg);
   let start = Date.now();
   let result = task();
   /* tslint:disable */
   console.log(msg, ':', Date.now() - start, 'ms');
   /* tslint:enable */
+  console.timeEnd(msg);
   return result;
 }
 export type Tracker = {
@@ -328,8 +330,9 @@ const measurerContext = canvas.getContext('2d');
  * Returns width of `text` rendered with Roboto at provided fontSize.
  */
 export function measureTextWidth(text: string, fontSize: number): number {
-  measurerContext.font = `${fontSize}px Roboto, sans-serif`;
-  return measurerContext.measureText(text).width;
+  return fontSize * text.length;
+  // measurerContext.font = `${fontSize}px Roboto, sans-serif`;
+  // return measurerContext.measureText(text).width;
 }
 
 /**

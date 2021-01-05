@@ -45,6 +45,7 @@ export enum GraphType {
 export enum NodeType {
   META,
   OP,
+  META_SERIES,
   SERIES,
   BRIDGE,
   ELLIPSIS,
@@ -743,6 +744,7 @@ export class MetaedgeImpl implements Metaedge {
   }
 }
 export function createSeriesNode(
+  srcNodeType: NodeType,
   prefix: string,
   suffix: string,
   parent: string,
@@ -751,6 +753,7 @@ export function createSeriesNode(
   graphOptions: any
 ): SeriesNode {
   return new SeriesNodeImpl(
+    srcNodeType,
     prefix,
     suffix,
     parent,
@@ -804,6 +807,7 @@ class SeriesNodeImpl implements SeriesNode {
     [key: string]: any;
   };
   constructor(
+    srcNodeType: NodeType,
     prefix: string,
     suffix: string,
     parent: string,
@@ -812,7 +816,10 @@ class SeriesNodeImpl implements SeriesNode {
     graphOptions: any
   ) {
     this.name = name || getSeriesNodeName(prefix, suffix, parent);
-    this.type = NodeType.SERIES;
+    this.type =
+      srcNodeType === NodeType.META || srcNodeType === NodeType.META_SERIES
+        ? NodeType.META_SERIES
+        : NodeType.SERIES;
     this.hasLoop = false;
     this.prefix = prefix;
     this.suffix = suffix;
@@ -1310,7 +1317,13 @@ function getEmbedPredicate(types: string[]) {
  */
 export function getStrictName(name: string): string {
   let parts = name.split(NAMESPACE_DELIM);
-  return name + NAMESPACE_DELIM + '(' + parts[parts.length - 1] + ')';
+  return (
+    name +
+    NAMESPACE_DELIM +
+    '(' +
+    parts[parts.length - 1].replace(/_\d+$/, '') +
+    ')'
+  );
 }
 /**
  * For each op node (embedding or non-embedding), rename it if there is a
@@ -1377,6 +1390,7 @@ function mapStrictHierarchy(
 function degreeSequence(graph: graphlib.Graph): number[] {
   let degrees = graph.nodes().map(function (name) {
     return graph.neighbors(name).length;
+    // return graph.nodeEdges(name).length;
   });
   degrees.sort();
   return degrees;

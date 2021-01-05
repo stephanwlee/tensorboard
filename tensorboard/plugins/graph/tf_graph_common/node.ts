@@ -162,7 +162,12 @@ export function buildGroup(
       let label = labelBuild(nodeGroup, d, sceneElement);
       // Do not add interaction to metanode labels as they live inside the
       // metanode shape which already has the same interactions.
-      addInteraction(label, d, sceneElement, d.node.type === NodeType.META);
+      addInteraction(
+        label,
+        d,
+        sceneElement,
+        d.node.type === NodeType.META || d.node.type === NodeType.META_SERIES
+      );
       stylize(nodeGroup, d, sceneElement);
       position(nodeGroup, d);
     });
@@ -416,7 +421,9 @@ function labelBuild(
   let text = renderNodeInfo.displayName;
   // Truncate long labels for unexpanded Metanodes.
   let useFontScale =
-    renderNodeInfo.node.type === NodeType.META && !renderNodeInfo.expanded;
+    (renderNodeInfo.node.type === NodeType.META ||
+      renderNodeInfo.node.type === NodeType.META_SERIES) &&
+    !renderNodeInfo.expanded;
   let label = tf_graph_common.selectOrCreateChild(
     nodeGroup,
     'text',
@@ -476,6 +483,7 @@ export function enforceLabelWidth(
   // Get maximum length from settings.
   let maxLength = null;
   switch (nodeType) {
+    case NodeType.META_SERIES:
     case NodeType.META:
       if (renderNodeInfo && !renderNodeInfo.expanded) {
         // Only trim text if
@@ -603,6 +611,7 @@ export function buildShape(
         .attr('rx', d.radius)
         .attr('ry', d.radius);
       break;
+    case NodeType.META_SERIES:
     case NodeType.META:
       tf_graph_common
         .selectOrCreateChild(shapeGroup, 'rect', Class.Node.COLOR_TARGET)
@@ -618,6 +627,7 @@ export function nodeClass(d: render.RenderNodeInfo) {
   switch (d.node.type) {
     case NodeType.OP:
       return Class.OPNODE;
+    case NodeType.META_SERIES:
     case NodeType.META:
       return Class.METANODE;
     case NodeType.SERIES:
@@ -664,6 +674,7 @@ function position(nodeGroup, d: render.RenderNodeInfo) {
       labelPosition(nodeGroup, cx, d.y, d.labelOffset);
       break;
     }
+    case NodeType.META_SERIES:
     case NodeType.META: {
       // position shape
       let shapes = shapeGroup.selectAll('rect');
@@ -783,7 +794,10 @@ export function getFillForNode(
   let colorParams = render.MetanodeColors;
   switch (colorBy) {
     case ColorBy.STRUCTURE:
-      if (renderInfo.node.type === NodeType.META) {
+      if (
+        renderInfo.node.type === NodeType.META ||
+        renderInfo.node.type === NodeType.META_SERIES
+      ) {
         let tid = (<Metanode>renderInfo.node).templateId;
         return tid === null
           ? colorParams.UNKNOWN

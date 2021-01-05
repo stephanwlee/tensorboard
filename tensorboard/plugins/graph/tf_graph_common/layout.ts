@@ -278,6 +278,7 @@ function layoutChildren(renderNodeInfo: render.RenderGroupNodeInfo): void {
       case NodeType.BRIDGE:
         _.extend(childNodeInfo, PARAMS.nodeSize.bridge);
         break;
+      case NodeType.META_SERIES:
       case NodeType.META:
         if (!childNodeInfo.expanded) {
           // Set fixed width and scalable height based on cardinality
@@ -349,7 +350,9 @@ function dagreLayout(
       height: 0,
     };
   }
+  console.time('dagre')
   dagre.layout(graph);
+  console.timeEnd('dagre')
   // Calculate the true bounding box of the graph by iterating over nodes and
   // edges rather than accepting dagre's word for it. In particular, we should
   // ignore the extra-wide bridge nodes and bridge edges, and allow for
@@ -714,17 +717,23 @@ function sizeAnnotation(a: render.Annotation): void {
     case render.AnnotationType.CONSTANT:
       _.extend(a, PARAMS.constant.size);
       break;
-    case render.AnnotationType.SHORTCUT:
-      if (a.node.type === NodeType.OP) {
-        _.extend(a, PARAMS.shortcutSize.op);
-      } else if (a.node.type === NodeType.META) {
-        _.extend(a, PARAMS.shortcutSize.meta);
-      } else if (a.node.type === NodeType.SERIES) {
-        _.extend(a, PARAMS.shortcutSize.series);
-      } else {
-        throw Error('Invalid node type: ' + a.node.type);
+    case render.AnnotationType.SHORTCUT: {
+      switch (a.node.type) {
+        case NodeType.OP:
+          _.extend(a, PARAMS.shortcutSize.op);
+          break;
+        case NodeType.META_SERIES:
+        case NodeType.META:
+          _.extend(a, PARAMS.shortcutSize.meta);
+          break;
+        case NodeType.SERIES:
+          _.extend(a, PARAMS.shortcutSize.series);
+          break;
+        default:
+          throw Error('Invalid node type: ' + a.node.type);
       }
       break;
+    }
     case render.AnnotationType.SUMMARY:
       _.extend(a, PARAMS.constant.size);
       break;

@@ -59,6 +59,9 @@ export class Minimap {
   };
   /** Padding (px) due to the main labels of the graph. */
   private labelPadding: number;
+
+  private raf: ReturnType<typeof requestAnimationFrame> = undefined;
+
   /**
    * Constructs a new minimap.
    *
@@ -292,7 +295,13 @@ export class Minimap {
         this.minimapSize.width,
         this.minimapSize.height
       );
-      requestAnimationFrame(() => {
+
+      if (this.raf !== undefined) {
+        cancelAnimationFrame(this.raf);
+      }
+
+      this.raf = requestAnimationFrame(() => {
+        this.raf = undefined;
         // Hide the old canvas and show the new buffer canvas.
         d3.select(this.canvasBuffer).style('display', null);
         d3.select(this.canvas).style('display', 'none');
