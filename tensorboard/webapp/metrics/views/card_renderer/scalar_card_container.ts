@@ -46,6 +46,7 @@ import {
 import {DataLoadState} from '../../../types/data';
 import {RunColorScale} from '../../../types/ui';
 import {classicSmoothing} from '../../../widgets/line_chart_v2/data_transformer';
+import {ScaleType} from '../../../widgets/line_chart_v2/types';
 import {PluginType, ScalarStepDatum} from '../../data_source';
 import {
   getCardLoadState,
@@ -145,6 +146,7 @@ function areSeriesEqual(
       "
       [gpuLineChartEnabled]="gpuLineChartEnabled$ | async"
       [smoothingEnabled]="smoothingEnabled$ | async"
+      [newXAxisType]="newXAxisType$ | async"
       (onFullSizeToggle)="onFullSizeToggle()"
       (onPinClicked)="pinStateChanged.emit($event)"
     ></scalar-card-component>
@@ -187,6 +189,21 @@ export class ScalarCardContainer implements CardRenderer, OnInit {
     .pipe(map((smoothing) => smoothing > 0));
 
   showFullSize = false;
+
+  readonly newXAxisType$ = this.store.select(getMetricsXAxisType).pipe(
+    map((axisType) => {
+      switch (axisType) {
+        case XAxisType.WALL_TIME:
+          return ScaleType.TIME;
+        case XAxisType.STEP:
+        case XAxisType.RELATIVE:
+          return ScaleType.LINEAR;
+        default:
+          const _ = axisType as never;
+          throw new RangeError(`GPU line chart does not support ${axisType}`);
+      }
+    })
+  );
 
   private isScalarCardMetadata(
     cardMetadata: CardMetadata
