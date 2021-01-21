@@ -10,6 +10,7 @@ py_library(
     srcs = ["core_plugin.py"],
     srcs_version = "PY3",
     deps = [
+        "//tensorboard:asset_provider",
         "//tensorboard:plugin_util",
         "//tensorboard/backend:http_util",
         "//tensorboard/plugins:base_plugin",

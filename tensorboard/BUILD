@@ -79,6 +79,25 @@ py_test(
 )
 
 py_library(
+    name = "asset_provider",
+    srcs = ["asset_provider.py"],
+    srcs_version = "PY3",
+)
+
+py_test(
+    name = "asset_provider_test",
+    size = "small",
+    srcs = ["asset_provider_test.py"],
+    srcs_version = "PY3",
+    tags = ["support_notf"],
+    visibility = ["//tensorboard:internal"],
+    deps = [
+        ":asset_provider",
+        ":test",
+    ],
+)
+
+py_library(
     name = "auth",
     srcs = ["auth.py"],
     srcs_version = "PY3",

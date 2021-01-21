@@ -25,6 +25,7 @@ import zipfile
 from werkzeug import utils
 from werkzeug import wrappers
 
+from tensorboard import asset_provider
 from tensorboard import plugin_util
 from tensorboard.backend import http_util
 from tensorboard.plugins import base_plugin
@@ -58,7 +59,11 @@ class CorePlugin(base_plugin.TBPlugin):
         self._logdir = context.logdir or logdir_spec
         self._window_title = context.window_title
         self._path_prefix = context.flags.path_prefix if context.flags else None
-        self._assets_zip_provider = context.assets_zip_provider
+        self._asset_provider = (
+            asset_provider.CachedZipAssetProvider(context.assets_zip_provider)
+            if context.assets_zip_provider
+            else None
+        )
         self._data_provider = context.data_provider
 
     def is_active(self):
@@ -85,25 +90,16 @@ class CorePlugin(base_plugin.TBPlugin):
 
     def get_resource_apps(self):
         apps = {}
-        if not self._assets_zip_provider:
+        if not self._asset_provider:
             return apps
 
-        with self._assets_zip_provider() as fp:
-            with zipfile.ZipFile(fp) as zip_:
-                for path in zip_.namelist():
-                    content = zip_.read(path)
-                    # Opt out of gzipping index.html
-                    if path == "index.html":
-                        apps["/" + path] = functools.partial(
-                            self._serve_index, content
-                        )
-                        continue
+        for path in self._asset_provider.list_static_files():
+            if path == "index.html":
+                wsgi_app = self._serve_index
+            else:
+                wsgi_app = functools.partial(self._serve_asset, path)
+            apps["/" + path] = wsgi_app
 
-                    gzipped_asset_bytes = _gzip(content)
-                    wsgi_app = functools.partial(
-                        self._serve_asset, path, gzipped_asset_bytes
-                    )
-                    apps["/" + path] = wsgi_app
         apps["/"] = apps["/index.html"]
         return apps
 
@@ -116,9 +112,12 @@ class CorePlugin(base_plugin.TBPlugin):
         return utils.redirect("/")
 
     @wrappers.Request.application
-    def _serve_asset(self, path, gzipped_asset_bytes, request):
+    def _serve_asset(self, path, request):
         """Serves a pre-gzipped static asset from the zip file."""
         mimetype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        gzipped_asset_bytes = self._asset_provider.get_gzipped_file_content(
+            path, True
+        )
 
         # Cache JS resources while keep others do not cache.
         expires = (
@@ -137,7 +136,7 @@ class CorePlugin(base_plugin.TBPlugin):
         )
 
     @wrappers.Request.application
-    def _serve_index(self, index_asset_bytes, request):
+    def _serve_index(self, request):
         """Serves index.html content.
 
         Note that we opt out of gzipping index.html to write preamble before the
@@ -153,12 +152,19 @@ class CorePlugin(base_plugin.TBPlugin):
             '<!doctype html><meta name="tb-relative-root" content="%s/">'
             % relpath
         )
+
+        index_asset_bytes = self._asset_provider.get_gzipped_file_content(
+            "index.html", False
+        )
         content = meta_header.encode("utf-8") + index_asset_bytes
         # By passing content_encoding, disallow gzipping. Bloats the content
         # from ~25 kiB to ~120 kiB but reduces CPU usage and avoid 3ms worth of
         # gzipping.
         return http_util.Respond(
-            request, content, "text/html", content_encoding="identity"
+            request,
+            content,
+            "text/html",
+            content_encoding="identity",
         )
 
     @wrappers.Request.application
@@ -614,14 +620,6 @@ flag.\
     def load(self, context):
         """Creates CorePlugin instance."""
         return CorePlugin(context)
-
-
-def _gzip(bytestring):
-    out = io.BytesIO()
-    # Set mtime to zero for deterministic results across TensorBoard launches.
-    with gzip.GzipFile(fileobj=out, mode="wb", compresslevel=3, mtime=0) as f:
-        f.write(bytestring)
-    return out.getvalue()
 
 
 def _parse_samples_per_plugin(value):
