@@ -182,8 +182,16 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngAfterViewInit() {
+    const dimPropChanged = this.readAndUpdateDomDimensions();
     this.initializeChart();
-    this.updateLineChart();
+    const viewboxPropChanged = this.updateLineChart();
+
+    // After view is initialized, if we ever change the Angular prop that should propagate
+    // to children, we need to retrigger the Angular change. Since we lazily update the
+    // property, these may return false.
+    if (dimPropChanged || viewboxPropChanged) {
+      this.changeDetector.detectChanges();
+    }
   }
 
   onViewResize() {
@@ -253,8 +261,6 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     const callbacks: ChartCallbacks = {onDrawEnd: () => {}};
     let params: ChartOptions | null = null;
 
-    this.readAndUpdateDomDimensions();
-
     switch (rendererType) {
       case RendererType.SVG: {
         params = {
@@ -295,7 +301,8 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
     return getRendererType(this.preferredRendererType);
   }
 
-  private readAndUpdateDomDimensions(): void {
+  private readAndUpdateDomDimensions(): boolean {
+    const prevDomDimension = this.domDimensions;
     this.domDimensions = {
       main: {
         width: this.seriesView.nativeElement.clientWidth,
@@ -310,13 +317,23 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
         height: this.yAxis.nativeElement.clientHeight,
       },
     };
+
+    return (
+      prevDomDimension.main.width !== this.domDimensions.main.width ||
+      prevDomDimension.main.height !== this.domDimensions.main.height ||
+      prevDomDimension.xAxis.width !== this.domDimensions.xAxis.width ||
+      prevDomDimension.xAxis.height !== this.domDimensions.xAxis.height ||
+      prevDomDimension.yAxis.width !== this.domDimensions.yAxis.width ||
+      prevDomDimension.yAxis.height !== this.domDimensions.yAxis.height
+    );
   }
 
   /**
    * Minimally and imperatively updates the chart library depending on prop changed.
    */
-  private updateLineChart() {
-    if (!this.lineChart || this.disableUpdate) return;
+  private updateLineChart(): boolean {
+    if (!this.lineChart || this.disableUpdate) return false;
+    let ngStateUpdated = false;
 
     if (this.scaleUpdated) {
       this.scaleUpdated = false;
@@ -348,6 +365,7 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
         x: this.xScale.niceDomain(dataExtent.x ?? DEFAULT_EXTENT.x),
         y: this.yScale.niceDomain(dataExtent.y ?? DEFAULT_EXTENT.y),
       };
+      ngStateUpdated = true;
     }
 
     // There are below conditions in which the viewBox changes.
@@ -359,6 +377,8 @@ export class LineChartComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.isViewBoxChanged = false;
       this.lineChart.setViewBox(this.viewBox);
     }
+
+    return ngStateUpdated;
   }
 
   onViewBoxChanged({dataExtent}: {dataExtent: Extent}) {
